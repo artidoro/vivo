@@ -14,32 +14,38 @@ import utils
 def parse_args(args):
     parser = argparse.ArgumentParser(description='Arguments for the text classification model.')
     # Data related.
-    #parser.add_argument('--train_path', default='../topicclass/topicclass_train.txt')
-    #parser.add_argument('--valid_path', default='../topicclass/topicclass_valid.txt')
-    #parser.add_argument('--test_path', default='../topicclass/topicclass_test.txt')
     parser.add_argument('--min_freq', default=1, type=int)
+    #parser.add_argument('--test_path', default='../topicclass/topicclass_test.txt')
+    #parser.add_argument('--valid_path', default='../topicclass/topicclass_valid.txt')
+    #parser.add_argument('--train_path', default='../topicclass/topicclass_train.txt')
 
     # Modeling.
     parser.add_argument('--device', default='cpu', help='Select cuda for the gpu.')
     parser.add_argument('--model_name', default='lstm_attn')
     parser.add_argument('--loss_function', default='xent')
+    parser.add_argument('--tie_embed', default=True, type=bool)
+    parser.add_argument('--input_feed', default=True, type=bool)
+    parser.add_argument('--unk_replace', default=True, type=bool)
+    # Encoder.
+    parser.add_argument('--enc_embed_size', default=300, type=int)
+    parser.add_argument('--enc_hidden_size', default=100, type=int)
+    parser.add_argument('--enc_num_layers', default=1, type=int)
+    parser.add_argument('--enc_bidirectional', default=True, type=bool)
+    # Decoder.
+    parser.add_argument('--dec_embed_size', default=300, type=int)
+    parser.add_argument('--dec_hidden_size', default=100, type=int)
+    parser.add_argument('--dec_num_layers', default=1, type=int)
+
+    # Training.
     parser.add_argument('--mode', default='train')
+    parser.add_argument('--batch_size', default=10, type=int)
     parser.add_argument('--train_epochs', default=20, type=int)
     parser.add_argument('--eval_epochs', default=1, type=int)
     parser.add_argument('--lr', default=1e-3, type=float)
     parser.add_argument('--weight_decay', default=0, type=float)
     parser.add_argument('--factor', default=0.1, type=float, help='Scheduler lr reduction factor.')
     parser.add_argument('--patience', default=100, type=int, help='Scheduler patience.')
-
-
-    #parser.add_argument('--alpha', default=1, type=float)
-    #parser.add_argument('--batch_size', default=10, type=int)
-    #parser.add_argument('--embed_size', default=300, type=int)
-    #parser.add_argument('--hidden_size', default=100, type=int)
-    #parser.add_argument('--dropout', default=0.5, type=float)
-    #parser.add_argument('--num_layers', default=1, type=int)
-    #parser.add_argument('--no_pretrained_vectors', action='store_true')
-    #parser.add_argument('--num_heads', default=5, type=int)
+    parser.add_argument('--dropout', default=0.5, type=float)
 
     # Save-load ops.
     parser.add_argument('--checkpoint_path', required=True)
@@ -48,7 +54,6 @@ def parse_args(args):
     parser.add_argument('--load_optimizer', action='store_true')
     parser.add_argument('--load_scheduler', action='store_true')
     return vars(parser.parse_args(args))
-
 
 if __name__ == '__main__':
     args = parse_args(sys.argv[1])
