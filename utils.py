@@ -1,6 +1,6 @@
+import spacy
 import torch
 import torchtext
-
 
 BOS_WORD = '<s>'
 EOS_WORD = '</s>'

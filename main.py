@@ -56,7 +56,7 @@ def parse_args(args):
     return vars(parser.parse_args(args))
 
 if __name__ == '__main__':
-    args = parse_args(sys.argv[1])
+    args = parse_args(sys.argv[1:])
 
     # Initialize logging.
     checkpoint_path = os.path.join('log', args['checkpoint_path'])
@@ -102,18 +102,18 @@ if __name__ == '__main__':
 
     if args['mode'] == 'train':
         logger.info('Starting training.')
-        train.train(module, optimizer, scheduler,
-            loss_dict[args['loss_function']](de_field.vocab.stoi[de_field.pad_token]),
+        train.train(model, optimizer, scheduler,
+            loss_dict[args['loss_function']](ignore_index=de_field.vocab.stoi[de_field.pad_token]),
             train_iter, val_iter, args)
 
     elif args['mode'] == 'eval':
         logger.info('Starting evaluation.')
         evaluation_results = {}
-        # evaluation_results['train'] = utils.eval(module, train_iter, args)
-        evaluation_results['valid'] = utils.eval(module, val_iter, args)
+        # evaluation_results['train'] = utils.eval(model, train_iter, args)
+        evaluation_results['valid'] = utils.eval(model, val_iter, args)
         logger.info('\n' + pprint.pformat(evaluation_results), args)
 
     elif args['mode'] == 'test':
         logger.info('Starting testing.')
-        utils.predict_write_to_file(module, test, args)
+        utils.predict_write_to_file(model, test, args)
         logger.info('Done writing predictions to file.')
