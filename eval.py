@@ -17,16 +17,16 @@ def eval(module, test_iter, loss_function, args):
         correct += sum((preds == batch.label)).item()
         total += batch.text.shape[0]
         # if write_to_file:
-        if write_to_file:
-            predictions += list(preds.cpu().numpy())
+        # if write_to_file:
+        #     predictions += list(preds.cpu().numpy())
 
     eval_results['loss'] = loss_tot/len(test_iter)
     eval_results['accuracy'] = correct / total
     # TODO: Perplexity.
 
     # Write predictions to file.
-    if write_to_file:
-        write_predictions(predictions, args, eval_results)
+    # if write_to_file:
+    #     write_predictions(predictions, args, eval_results)
 
     module.train(mode)
     return eval_results

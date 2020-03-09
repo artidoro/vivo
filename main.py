@@ -38,7 +38,7 @@ def parse_args(args):
 
     # Training.
     parser.add_argument('--mode', default='train')
-    parser.add_argument('--batch_size', default=10, type=int)
+    parser.add_argument('--batch_size', default=32, type=int)
     parser.add_argument('--train_epochs', default=20, type=int)
     parser.add_argument('--eval_epochs', default=1, type=int)
     parser.add_argument('--lr', default=1e-3, type=float)
@@ -61,9 +61,10 @@ if __name__ == '__main__':
     # Initialize logging.
     checkpoint_path = os.path.join('log', args['checkpoint_path'])
     logger = logging_utils.setup_logging(logger_name='logger', path=checkpoint_path)
+    logger.info('Starting with args:\n{}'.format(pprint.pformat(args)))
 
     # Load the data.
-    logger.info('Starting to train text classification model with args:\n{}'.format(pprint.pformat(args)))
+    logger.info('Building iterators.')
     train_iter, val_iter, test, en_field, de_field = utils.torchtext_iterators(
         device=args['device'], batch_size=args['batch_size'], min_freq=args['min_freq'])
 

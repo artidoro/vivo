@@ -14,7 +14,7 @@ def train(model, optimizer, scheduler, loss_function, train_iter, val_iter, args
         for batch in tqdm.tqdm(train_iter):
             optimizer.zero_grad()
             scores = model(batch.src, batch.trg)
-            loss = loss_function(scores, batch.trg)
+            loss = loss_function(scores[:-1,:,:].view(-1, scores.shape[2]), batch.trg[1:,:].view(-1))
             loss.backward()
             optimizer.step()
             loss_tot += loss.item()

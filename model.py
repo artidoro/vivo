@@ -120,11 +120,11 @@ class GlobalAttention(nn.Module):
         self.tanh = nn.Tanh()
 
     def forward(self, query, values):
-        query_resize = self.linear1(query)
+        query_resize = self.linear1(query) # t=1 x b x d
 
-        attn_scores = torch.bmm(query_resize, values.transpose(1, 2))
-        attn = torch.functional.softmax(attn_scores, dim=-1)
-        attended_values = torch.bmm(attn, values)
+        attn_scores = torch.bmm(query_resize.transpose(0,1), values.permute(1,2,0))
+        attn = torch.softmax(attn_scores, dim=-1)
+        attended_values = torch.bmm(attn, values.transpose(0,1)).transpose(0,1)
 
         query_feed = torch.cat([attended_values, query], dim=-1)
         output_resize = self.tanh(self.linear2(query_feed))
@@ -141,10 +141,8 @@ class AttentionDecoder(nn.Module):
             lstm_input_size *= 2
 
         self.embedding = nn.Embedding(vocab_size, kwargs['dec_embed_size'])
-        self.output_init = nn.Parameter(torch.zeros(kwargs['batch_size'],
-            kwargs['dec_embed_size']))
-        self.hidden_init = nn.Parameter(torch.zeros([kwargs['dec_num_layers'],
-            kwargs['batch_size'], kwargs['dec_hidden_size']]))
+        self.output_init = nn.Parameter(torch.zeros([1, kwargs['batch_size'],
+            kwargs['dec_embed_size']]))
         self.lstm = nn.LSTM(lstm_input_size, kwargs['dec_hidden_size'],
             num_layers=kwargs['dec_num_layers'], dropout=kwargs['dropout'])
         self.global_attn = GlobalAttention(query_size=kwargs['dec_hidden_size'],
@@ -162,18 +160,20 @@ class AttentionDecoder(nn.Module):
         trg_embeddings = self.embedding(trg_batch)
 
         output = self.output_init
-        hidden = self.hidden_init
+        hidden = None
         outputs = []
         for i in range(trg_embeddings.shape[0]):
-            trg_embed = trg_embeddings[i,:,:]
-            input_combined = torch.cat([trg_embed, output], dim=1)
+            trg_embed = trg_embeddings[i:i+1,:,:] # t=1 x b x d
+            input_combined = torch.cat([trg_embed, output], dim=-1)
             h_decoder, hidden = self.lstm(input_combined, hidden)
             attended_output = self.global_attn(h_decoder, h_encoder)
             output = self.dropout(attended_output)
             if self.xent:
-                output = torch.nn(self.linear1(attended_output), dim=2)
-            outputs.append(output)
-        return torch.stack(outputs, 1)
+                output_projected = self.linear1(output)
+                outputs.append(output_projected)
+            else:
+                outputs.append(output)
+        return torch.cat(outputs, 0)
 
 model_dict = {
     'lstm_attn': AttentionEncoderDecoder,
