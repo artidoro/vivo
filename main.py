@@ -16,6 +16,8 @@ def parse_args(args):
     parser = argparse.ArgumentParser(description='Arguments for the text classification model.')
     # Data related.
     parser.add_argument('--min_freq', default=1, type=int)
+    parser.add_argument('--max_len', default=sys.maxsize, type=int,
+        help='Filters inputs to be at most the specified length.')
     #parser.add_argument('--test_path', default='../topicclass/topicclass_test.txt')
     #parser.add_argument('--valid_path', default='../topicclass/topicclass_valid.txt')
     #parser.add_argument('--train_path', default='../topicclass/topicclass_train.txt')
@@ -54,6 +56,7 @@ def parse_args(args):
     parser.add_argument('--use_checkpoint_args', action='store_true')
     parser.add_argument('--load_optimizer', action='store_true')
     parser.add_argument('--load_scheduler', action='store_true')
+    parser.add_argument('--write_to_file', action='store_true', help='Write predictions to file.')
     return vars(parser.parse_args(args))
 
 if __name__ == '__main__':
@@ -65,9 +68,12 @@ if __name__ == '__main__':
     logger.info('Starting with args:\n{}'.format(pprint.pformat(args)))
 
     # Load the data.
-    logger.info('Building iterators.')
+    logger.info('Loading data and building iterators.')
     train_iter, val_iter, test, en_field, de_field = utils.torchtext_iterators(
         device=args['device'], batch_size=args['batch_size'], min_freq=args['min_freq'])
+
+    train_iter = [item for i, item in enumerate(train_iter) if i < 10]
+    val_iter = train_iter
 
     # Initialize model and optimizer. This requires loading checkpoint if specified in the arguments.
     if args['load_checkpoint_path'] == None:

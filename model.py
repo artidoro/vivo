@@ -141,8 +141,6 @@ class AttentionDecoder(nn.Module):
             lstm_input_size *= 2
 
         self.embedding = nn.Embedding(vocab_size, kwargs['dec_embed_size'])
-        self.output_init = torch.zeros([1, kwargs['batch_size'],
-            kwargs['dec_embed_size']]).to(kwargs['device'])
         self.lstm = nn.LSTM(lstm_input_size, kwargs['dec_hidden_size'],
             num_layers=kwargs['dec_num_layers'], dropout=kwargs['dropout'])
         self.global_attn = GlobalAttention(query_size=kwargs['dec_hidden_size'],
@@ -159,7 +157,8 @@ class AttentionDecoder(nn.Module):
     def forward(self, trg_batch, h_encoder):
         trg_embeddings = self.embedding(trg_batch)
 
-        output = self.output_init
+        output = torch.zeros([1, trg_batch.shape[1], trg_embeddings.shape[2]])\
+            .to(self.embedding.weight.device)
         hidden = None
         outputs = []
         for i in range(trg_embeddings.shape[0]):
