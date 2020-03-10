@@ -1,3 +1,4 @@
+import math
 
 def eval(module, test_iter, loss_function, args):
     mode = module.training
@@ -21,8 +22,8 @@ def eval(module, test_iter, loss_function, args):
 
     eval_results['loss'] = loss_tot/len(test_iter)
     eval_results['accuracy'] = correct / total
-    # TODO: Perplexity.
-
+    eval_results['perplexity'] = math.exp(loss_tot)
+    
     # Write predictions to file.
     # if write_to_file:
     #     write_predictions(predictions, args, eval_results)
