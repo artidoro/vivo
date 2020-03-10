@@ -10,15 +10,14 @@ def eval(module, test_iter, loss_function, args):
     predictions = []
 
     for batch in tqdm(test_iter):
-        scores = module.forward(batch.text)
-        loss = model.loss(scores, batch.label)
+        scores = module.forward(batch.src, batch.trg)
+        loss = loss_function(scores[:-1,:,:].view(-1, scores.shape[2]), batch.trg[1:,:].view(-1)) # t x b x Vocab
         loss_tot += loss.item()
         preds = scores.argmax(1).squeeze()
-        correct += sum((preds == batch.label)).item()
-        total += batch.text.shape[0]
-        # if write_to_file:
-        # if write_to_file:
-        #     predictions += list(preds.cpu().numpy())
+        correct += sum((preds == batch.trg[1:,:].view(-1))).item()
+        total += batch.src.shape[1]
+        if args['write_to_file']:
+            predictions += list(preds.cpu().numpy())
 
     eval_results['loss'] = loss_tot/len(test_iter)
     eval_results['accuracy'] = correct / total
