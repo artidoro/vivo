@@ -1,6 +1,6 @@
+import spacy
 import torch
 import torchtext
-
 
 BOS_WORD = '<s>'
 EOS_WORD = '</s>'
@@ -9,17 +9,18 @@ def torchtext_iterators(device='cpu', batch_size=32,  min_freq=1):
     spacy_de = spacy.load('de')
     spacy_en = spacy.load('en')
 
+    # TODO: Use same preprocessing as OpenNMT.
     def tokenize_de(text):
         return [tok.text for tok in spacy_de.tokenizer(text)]
-
     def tokenize_en(text):
         return [tok.text for tok in spacy_en.tokenizer(text)]
 
-    de_field = torchtext.data.Field(tokenize=tokenize_de)
+    # Only target needs BOS/EOS.
+    de_field = torchtext.data.Field(tokenize=tokenize_de,)
     en_field = torchtext.data.Field(tokenize=tokenize_en,
-        init_token=BOS_WORD, eos_token=EOS_WORD)  # only target needs BOS/EOS
+        init_token=BOS_WORD, eos_token=EOS_WORD)
 
-    # TODO: actually load the WMT 16, sachin data.
+    # TODO: Actually load the WMT 16, sachin data.
     train, val, test = torchtext.datasets.IWSLT.splits(exts=('.de', '.en'),
         fields=(de_field, en_field))
 

@@ -1,4 +1,7 @@
+from datetime import datetime
+import logging
 import torch
+import tqdm
 
 import eval
 
@@ -8,10 +11,10 @@ def train(model, optimizer, scheduler, loss_function, train_iter, val_iter, args
     for epoch in range(args['train_epochs']):
         logger.info('Starting training for epoch {} of {}.'.format(epoch+1, args['train_epochs']))
         loss_tot = 0
-        for batch in tqdm(train_iter):
+        for batch in tqdm.tqdm(train_iter):
             optimizer.zero_grad()
-            scores = model.forward(batch.text)
-            loss = loss_function(scores, batch.label)
+            scores = model(batch.src, batch.trg)
+            loss = loss_function(scores[:-1,:,:].view(-1, scores.shape[2]), batch.trg[1:,:].view(-1))
             loss.backward()
             optimizer.step()
             loss_tot += loss.item()
