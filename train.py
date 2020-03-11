@@ -5,7 +5,7 @@ import pprint
 import torch
 import tqdm
 
-import eval
+import evaluation
 
 def train(model, optimizer, scheduler, loss_function, train_iter, val_iter, args):
     logger = logging.getLogger('logger')
@@ -13,7 +13,7 @@ def train(model, optimizer, scheduler, loss_function, train_iter, val_iter, args
     for epoch in range(args['train_epochs']):
         logger.info('Starting training for epoch {} of {}.'.format(epoch+1, args['train_epochs']))
         loss_tot = 0
-        for batch_idx, batch in tqdm.tqdm(enumerate(train_iter)):
+        for batch in tqdm.tqdm(train_iter):
             optimizer.zero_grad()
             scores = model(batch.src, batch.trg)
             loss = loss_function(scores[:-1,:,:].view(-1, scores.shape[2]), batch.trg[1:,:].view(-1))
@@ -28,7 +28,7 @@ def train(model, optimizer, scheduler, loss_function, train_iter, val_iter, args
             logger.info('Starting evaluation.')
             evaluation_results = {}
             #evaluation_results['train'] = eval(model, train_iter, args)
-            evaluation_results['valid'] = eval.eval(model, loss_function, val_iter, args)
+            evaluation_results['valid'] = evaluation.eval(model, loss_function, val_iter, args)
             logger.info('\n' + pprint.pformat(evaluation_results))
 
             # Update the scheduler.

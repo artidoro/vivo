@@ -1,4 +1,3 @@
-import evaluation
 import argparse
 import torch
 import os
@@ -7,6 +6,7 @@ import pprint
 import sys
 import time
 
+import evaluation
 import logging_utils
 from model import model_dict, loss_dict
 import train
@@ -50,6 +50,9 @@ def parse_args(args):
     parser.add_argument('--patience', default=100, type=int, help='Scheduler patience.')
     parser.add_argument('--dropout', default=0.5, type=float)
 
+    # Decoding.
+    parser.add_argument('--max_decoding_len', default=256, type=int)
+
     # Save-load ops.
     parser.add_argument('--checkpoint_path', required=True)
     parser.add_argument('--load_checkpoint_path', default=None)
@@ -69,7 +72,7 @@ if __name__ == '__main__':
 
     # Load the data.
     logger.info('Loading data and building iterators.')
-    train_iter, val_iter, test, en_field, de_field = utils.torchtext_iterators(
+    train_iter, val_iter, test, de_field, en_field = utils.torchtext_iterators(
         device=args['device'], batch_size=args['batch_size'], min_freq=args['min_freq'])
 
     train_iter = [item for i, item in enumerate(train_iter) if i < 10]
@@ -77,7 +80,7 @@ if __name__ == '__main__':
 
     # Initialize model and optimizer. This requires loading checkpoint if specified in the arguments.
     if args['load_checkpoint_path'] == None:
-        model = model_dict[args['model_name']](en_field.vocab, de_field.vocab, **args)
+        model = model_dict[args['model_name']](de_field.vocab, en_field.vocab, **args)
         model.to(torch.device(args['device']))
         optimizer = torch.optim.Adam(model.parameters(), lr=args['lr'],
             weight_decay=args['weight_decay'])
@@ -95,7 +98,7 @@ if __name__ == '__main__':
             args = checkpoint['args']
 
         # Initialize model, optimizer, scheduler.
-        model = model_dict[checkpoint['args']['model_name']]({}, {})
+        model = model_dict[checkpoint['args']['model_name']](de_field.vocab, en_field.vocab, **args)
         model.to(torch.device(args['device']))
         optimizer = torch.optim.Adam(model.parameters(), lr=args['lr'],
             weight_decay=args['weight_decay'])
@@ -117,9 +120,8 @@ if __name__ == '__main__':
     elif args['mode'] == 'eval':
         logger.info('Starting evaluation.')
         evaluation_results = {}
-        evaluation.greedy_decoder(model,train_iter)
         # evaluation_results['train'] = utils.eval(model, train_iter, args)
-        evaluation_results['valid'] = utils.eval(model, val_iter, args)
+        evaluation_results['valid'] = evaluation.decode(model, val_iter, args)
         logger.info('\n' + pprint.pformat(evaluation_results), args)
 
     elif args['mode'] == 'test':

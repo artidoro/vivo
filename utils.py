@@ -4,12 +4,12 @@ import sys
 import torch
 import torchtext
 
-PAD_WORD = '<pad>'
-UNK_WORD = '<unk>'
-BOS_WORD = '<s>'
-EOS_WORD = '</s>'
-UNK_WORD = '<unk>'
-PAD_WORD = '<pad>'
+PAD_TOKEN = '<pad>'
+UNK_TOKEN = '<unk>'
+BOS_TOKEN = '<s>'
+EOS_TOKEN = '</s>'
+UNK_TOKEN = '<unk>'
+PAD_TOKEN = '<pad>'
 
 def torchtext_iterators(device='cpu', batch_size=32,  min_freq=1, max_len=sys.maxsize):
     logger = logging.getLogger('logger')
@@ -25,7 +25,7 @@ def torchtext_iterators(device='cpu', batch_size=32,  min_freq=1, max_len=sys.ma
     # Only target needs BOS/EOS.
     de_field = torchtext.data.Field(tokenize=tokenize_de, lower=True)
     en_field = torchtext.data.Field(tokenize=tokenize_en,
-        init_token=BOS_WORD, eos_token=EOS_WORD, lower=True)
+        init_token=BOS_TOKEN, eos_token=EOS_TOKEN, lower=True)
 
     # TODO: Actually load the WMT 16, sachin data.
     train, val, test = torchtext.datasets.IWSLT.splits(
