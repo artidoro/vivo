@@ -4,6 +4,8 @@ import torchtext
 
 BOS_WORD = '<s>'
 EOS_WORD = '</s>'
+UNK_WORD = '<unk>'
+PAD_WORD = '<pad>'
 
 def torchtext_iterators(device='cpu', batch_size=32,  min_freq=1):
     spacy_de = spacy.load('de')

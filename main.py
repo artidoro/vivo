@@ -1,3 +1,4 @@
+import evaluation
 import argparse
 import torch
 import os
@@ -110,6 +111,7 @@ if __name__ == '__main__':
     elif args['mode'] == 'eval':
         logger.info('Starting evaluation.')
         evaluation_results = {}
+        evaluation.greedy_decoder(model,train_iter)
         # evaluation_results['train'] = utils.eval(model, train_iter, args)
         evaluation_results['valid'] = utils.eval(model, val_iter, args)
         logger.info('\n' + pprint.pformat(evaluation_results), args)
