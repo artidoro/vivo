@@ -6,6 +6,7 @@ import sacrebleu
 import tqdm
 
 from utils import BOS_TOKEN, EOS_TOKEN, UNK_TOKEN, PAD_TOKEN
+from loss import VonMisesFisherLoss
 
 def write_predictions(predictions, args):
     # Datetime object containing current date and time.
@@ -52,7 +53,11 @@ def eval(model, loss_function, test_iter, args):
 
     for batch in tqdm.tqdm(test_iter):
         scores = model.forward(batch.src, batch.trg)
-        loss = loss_function(scores[:-1,:,:].view(-1, scores.shape[2]), batch.trg[1:,:].view(-1))
+        if isinstance(loss_function, VonMisesFisherLoss):
+            target = model.decoder.embedding(batch.trg[1:,:].view(-1))
+        else:
+            target = batch.trg[1:,:].view(-1)
+        loss = loss_function(scores[:-1,:,:].view(-1, scores.shape[2]), target)
         loss_tot += loss.item()
         preds = scores[:-1,:,:].argmax(2).squeeze()
         correct += sum((preds.view(-1) == batch.trg[1:,:].view(-1))).item()

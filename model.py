@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 from torch.nn import TransformerEncoder, TransformerEncoderLayer,TransformerDecoderLayer
 
+import loss
+
 class AttentionEncoderDecoder(nn.Module):
     def __init__(self, src_vocab, trg_vocab, **kargs):
         super(AttentionEncoderDecoder, self).__init__()
@@ -151,7 +153,7 @@ class AttentionDecoder(nn.Module):
         self.dropout = nn.Dropout(kwargs['dropout'])
 
         # Weight tying.
-        if kwargs['tie_embed']:
+        if self.xent and kwargs['tie_embed']:
             self.linear1.weight = self.embedding.weight
 
     def forward(self, trg_batch, h_encoder):
@@ -180,5 +182,6 @@ model_dict = {
 }
 
 loss_dict = {
-    'xent': nn.CrossEntropyLoss
+    'xent': nn.CrossEntropyLoss,
+    'vmf': loss.VonMisesFisherLoss,
 }

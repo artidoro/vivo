@@ -6,6 +6,7 @@ import torch
 import tqdm
 
 import evaluation
+from loss import VonMisesFisherLoss
 
 def train(model, optimizer, scheduler, loss_function, train_iter, val_iter, args):
     logger = logging.getLogger('logger')
@@ -16,7 +17,11 @@ def train(model, optimizer, scheduler, loss_function, train_iter, val_iter, args
         for batch in tqdm.tqdm(train_iter):
             optimizer.zero_grad()
             scores = model(batch.src, batch.trg)
-            loss = loss_function(scores[:-1,:,:].view(-1, scores.shape[2]), batch.trg[1:,:].view(-1))
+            if isinstance(loss_function, VonMisesFisherLoss):
+                target = model.decoder.embedding(batch.trg[1:,:].view(-1))
+            else:
+                target = batch.trg[1:,:].view(-1)
+            loss = loss_function(scores[:-1,:,:].view(-1, scores.shape[2]), target)
             loss.backward()
             optimizer.step()
             loss_tot += loss.item()

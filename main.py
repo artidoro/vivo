@@ -73,7 +73,11 @@ if __name__ == '__main__':
     # Load the data.
     logger.info('Loading data and building iterators.')
     train_iter, val_iter, test, de_field, en_field = utils.torchtext_iterators(
-        device=args['device'], batch_size=args['batch_size'], min_freq=args['min_freq'])
+        device=args['device'],
+        batch_size=args['batch_size'],
+        min_freq=args['min_freq'],
+        max_len=args['max_len']
+    )
 
     train_iter = [item for i, item in enumerate(train_iter) if i < 10]
     val_iter = train_iter
@@ -113,9 +117,23 @@ if __name__ == '__main__':
 
     if args['mode'] == 'train':
         logger.info('Starting training.')
-        train.train(model, optimizer, scheduler,
-            loss_dict[args['loss_function']](ignore_index=de_field.vocab.stoi[de_field.pad_token]),
-            train_iter, val_iter, args)
+        if args["loss_function"] == "xent":
+            loss_function = loss_dict["xent"](
+                ignore_index=de_field.vocab.stoi[de_field.pad_token]
+            )
+        elif args["loss_function"] == "vmf":
+            loss_function = loss_dict["vmf"](args["dec_embed_size"])
+        else:
+            raise ValueError(f"Unknown loss function: {args['loss_function']}")
+        train.train(
+            model,
+            optimizer,
+            scheduler,
+            loss_function,
+            train_iter,
+            val_iter,
+            args
+        )
 
     elif args['mode'] == 'eval':
         logger.info('Starting evaluation.')
