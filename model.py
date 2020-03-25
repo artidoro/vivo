@@ -118,12 +118,14 @@ class GlobalAttention(nn.Module):
         self.linear1 = nn.Linear(query_size, values_size)
         self.linear2 = nn.Linear(query_size + values_size, out_size)
         self.tanh = nn.Tanh()
+        self.alphas = []
 
     def forward(self, query, values):
         query_resize = self.linear1(query) # t=1 x b x d
 
         attn_scores = torch.bmm(query_resize.transpose(0,1), values.permute(1,2,0))
         attn = torch.softmax(attn_scores, dim=-1)
+        self.alphas = attn.detach().squeeze(1) # b x num_src_words
         attended_values = torch.bmm(attn, values.transpose(0,1)).transpose(0,1)
 
         query_feed = torch.cat([attended_values, query], dim=-1)
@@ -154,6 +156,8 @@ class AttentionDecoder(nn.Module):
         if kwargs['tie_embed']:
             self.linear1.weight = self.embedding.weight
 
+        self.attention = []
+
     def forward(self, trg_batch, h_encoder):
         trg_embeddings = self.embedding(trg_batch)
 
@@ -161,11 +165,13 @@ class AttentionDecoder(nn.Module):
             .to(self.embedding.weight.device)
         hidden = None
         outputs = []
+        self.attention = []
         for i in range(trg_embeddings.shape[0]):
             trg_embed = trg_embeddings[i:i+1,:,:] # t=1 x b x d
             input_combined = torch.cat([trg_embed, output], dim=-1)
             h_decoder, hidden = self.lstm(input_combined, hidden)
             attended_output = self.global_attn(h_decoder, h_encoder)
+            self.attention.append(self.global_attn.alphas) # num_target_words x b x num_src_words
             output = self.dropout(attended_output)
             if self.xent:
                 output_projected = self.linear1(output)

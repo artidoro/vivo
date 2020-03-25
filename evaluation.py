@@ -2,8 +2,11 @@ from datetime import datetime
 import logging
 import math
 import os
-import sacrebleu
+import torch
+#import sacrebleu
 import tqdm
+
+sacrebleu = {}
 
 from utils import BOS_TOKEN, EOS_TOKEN, UNK_TOKEN, PAD_TOKEN
 
@@ -23,19 +26,25 @@ def write_predictions(predictions, args):
         for sentence in predictions:
             out_file.write(sentence + '\n')
 
-def idx_to_TOKENs(predictions, trg_vocab):
+def idx_to_TOKENs(predictions, trg_vocab, src_sents = None, copy_lut = None, attn = None):
     """
     Given a list of lists of indices maps to a list of strings.
     Each string is an example. We use the vocab to map between indices
     and words.
+
+    attn: is the stacked attn vectors
     """
     mapped_predictions = []
-    for prediction_example in predictions:
+    for pred_idx, prediction_example in enumerate(predictions):
         mapped_example = []
-        for index in prediction_example:
+        for index_idx, index in enumerate(prediction_example):
             word = trg_vocab.itos[index]
             if word is EOS_TOKEN:
                 break
+            elif word is UNK_TOKEN and type(src_sents) != type(None) and type(attn) != type(None) and type(copy_lut) != type(None):
+                import pdb;pdb.set_trace()
+                _, max_attn_idx = attn[pred_idx,index_idx].max(-1)
+                word = copy_lut.itos[src[pred_idx, max_attn_idx]]
             mapped_example.append(word)
         mapped_predictions.append(' '.join(mapped_example))
     return mapped_predictions
@@ -49,16 +58,22 @@ def eval(model, loss_function, test_iter, args):
     loss_tot = 0
     eval_results = {}
     predictions = []
-
+    prediction_strings = []
+    import pdb; pdb.set_trace()
     for batch in tqdm.tqdm(test_iter):
         scores = model.forward(batch.src, batch.trg)
+        attn_vectors = torch.stack(model.decoder.attention).permute(1,0,2)
         loss = loss_function(scores[:-1,:,:].view(-1, scores.shape[2]), batch.trg[1:,:].view(-1))
         loss_tot += loss.item()
         preds = scores[:-1,:,:].argmax(2).squeeze()
         correct += sum((preds.view(-1) == batch.trg[1:,:].view(-1))).item()
         total += len(preds.view(-1))
         if args['write_to_file']:
-            predictions += list(preds.transpose(0,1).tolist())
+            predictions = list(preds.transpose(0,1).tolist())
+            if args['unk_replace']: 
+                prediction_strings += idx_to_TOKENs(predictions, model.trg_vocab, src_sents = batch.src.permute(1,0), copy_lut = model.src_vocab, attn = attn_vectors)
+            else:
+                prediction_strings += idx_to_TOKENs(predictions, model.trg_vocab)
 
     eval_results['loss'] = loss_tot/len(test_iter)
     eval_results['perplexity'] = math.exp(loss_tot/len(test_iter))
@@ -67,7 +82,6 @@ def eval(model, loss_function, test_iter, args):
     # Write predictions to file.
     if args['write_to_file']:
         # Convert indices to words.
-        prediction_strings = idx_to_TOKENs(predictions, model.trg_vocab)
         write_predictions(prediction_strings, args)
 
     model.train(mode)
