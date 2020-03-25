@@ -18,13 +18,15 @@ def parse_args(args):
     parser.add_argument('--min_freq', default=1, type=int)
     parser.add_argument('--max_len', default=256, type=int,
         help='Filters inputs to be at most the specified length.')
-    #parser.add_argument('--test_path', default='../topicclass/topicclass_test.txt')
-    #parser.add_argument('--valid_path', default='../topicclass/topicclass_valid.txt')
-    #parser.add_argument('--train_path', default='../topicclass/topicclass_train.txt')
+    parser.add_argument('--src_language', default='de',
+        help='Choose "de", "fr", or "en".')
+    parser.add_argument('--trg_language', default='en',
+        help='Choose "de", "fr", or"en".')
 
     # Modeling.
     parser.add_argument('--device', default='cpu', help='Select cuda for the gpu.')
     parser.add_argument('--model_name', default='lstm_attn')
+    parser.add_argument('--fasttext_embeds', default=True, type=bool)
     parser.add_argument('--loss_function', default='xent')
     parser.add_argument('--tie_embed', default=True, type=bool)
     parser.add_argument('--input_feed', default=True, type=bool)
@@ -54,6 +56,7 @@ def parse_args(args):
     parser.add_argument('--max_decoding_len', default=256, type=int)
 
     # Save-load ops.
+    parser.add_argument('--data_path', default='.data', help='Path to IWSLT16.')
     parser.add_argument('--checkpoint_path', required=True)
     parser.add_argument('--load_checkpoint_path', default=None)
     parser.add_argument('--use_checkpoint_args', action='store_true')
@@ -72,11 +75,15 @@ if __name__ == '__main__':
 
     # Load the data.
     logger.info('Loading data and building iterators.')
-    train_iter, val_iter, test, de_field, en_field = utils.torchtext_iterators(
+    train_iter, val_iter, test, src_field, trg_field = utils.torchtext_iterators(
+        root_data_path=args['data_path'],
+        src_language=args['src_language'],
+        trg_language=args['trg_language'],
         device=args['device'],
         batch_size=args['batch_size'],
         min_freq=args['min_freq'],
-        max_len=args['max_len']
+        max_len=args['max_len'],
+        load_fasttext_embeds=args['fasttext_embeds']
     )
 
     train_iter = [item for i, item in enumerate(train_iter) if i < 10]
@@ -84,7 +91,7 @@ if __name__ == '__main__':
 
     # Initialize model and optimizer. This requires loading checkpoint if specified in the arguments.
     if args['load_checkpoint_path'] is None:
-        model = model_dict[args['model_name']](de_field.vocab, en_field.vocab, **args)
+        model = model_dict[args['model_name']](src_field.vocab, trg_field.vocab, **args)
         model.to(torch.device(args['device']))
         optimizer = torch.optim.Adam(model.parameters(), lr=args['lr'],
             weight_decay=args['weight_decay'])
@@ -102,7 +109,7 @@ if __name__ == '__main__':
             args = checkpoint['args']
 
         # Initialize model, optimizer, scheduler.
-        model = model_dict[checkpoint['args']['model_name']](de_field.vocab, en_field.vocab, **args)
+        model = model_dict[checkpoint['args']['model_name']](src_field.vocab, trg_field.vocab, **args)
         model.to(torch.device(args['device']))
         optimizer = torch.optim.Adam(model.parameters(), lr=args['lr'],
             weight_decay=args['weight_decay'])
@@ -119,7 +126,7 @@ if __name__ == '__main__':
         logger.info('Starting training.')
         if args["loss_function"] == "xent":
             loss_function = loss_dict["xent"](
-                ignore_index=de_field.vocab.stoi[de_field.pad_token]
+                ignore_index=src_field.vocab.stoi[src_field.pad_token]
             )
         elif args["loss_function"] == "vmf":
             loss_function = loss_dict["vmf"](
