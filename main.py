@@ -143,6 +143,7 @@ if __name__ == '__main__':
         logger.info('\n' + pprint.pformat(evaluation_results), args)
 
     elif args['mode'] == 'test':
+        raise NotImplementedError()
         logger.info('Starting testing.')
         utils.predict_write_to_file(model, test, args)
         logger.info('Done writing predictions to file.')

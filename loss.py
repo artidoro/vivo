@@ -19,21 +19,23 @@ class VonMisesFisherLoss(torch.nn.modules.loss._Loss):
     def __init__(self, input_dim: int, n_bessel_iters=10, reduction="mean") -> None:
         super(VonMisesFisherLoss, self).__init__(reduction=reduction)
         bessel_consts = VonMisesFisherLoss.calculate_bessel_consts(
-            input_dim, n_bessel_iters
+            input_dim / 2 - 1, n_bessel_iters
         )
         self.bessel_exps, self.bessel_coeffs = bessel_consts
 
     def forward(self, input: Tensor, target: Tensor) -> Tensor:
         # TODO Add both types of regularization
+        unit_target = target / target.norm(dim=-1).reshape(-1, 1)
+        # Second line is batch-wise dot product
         x = (
-            -self.log_vmf_normalizing_const(input.norm(), input.shape[-1])
-            - 1e-1*(target @ input.T)
+            -self.log_vmf_normalizing_const(input.norm(dim=-1), input.shape[-1])
+            - 1e-1*(unit_target * input).sum(-1)
         )
         if self.reduction == 'none':
             return x
         elif self.reduction == 'mean':
             return x.mean()
-        elif self.reduction == 'mean':
+        elif self.reduction == 'sum':
             return x.sum()
 
     def calculate_bessel_consts(v: float, n_iters: int) -> Tuple[Tensor, Tensor]:
@@ -47,8 +49,10 @@ class VonMisesFisherLoss(torch.nn.modules.loss._Loss):
     def log_bessel(self, x: Tensor) -> Tensor:
         """Approximation of the log of modified Bessel function of the first kind"""
 
+        # We need each value multipled with each coeff -> (|x|, 1) * (1, |coeffs|)
+        x = x.reshape(-1, 1)
         return torch.logsumexp(
-            torch.log(x / 2) * self.bessel_exps + self.bessel_coeffs, 0
+            torch.log(x / 2) * self.bessel_exps + self.bessel_coeffs, -1
         )
 
     def log_vmf_normalizing_const(self, kappa: Tensor, m: Tensor) -> Tensor:

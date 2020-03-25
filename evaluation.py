@@ -2,9 +2,12 @@ from datetime import datetime
 import logging
 import math
 import os
+from typing import Any
+
 import sacrebleu
 import tqdm
 
+import utils
 from utils import BOS_TOKEN, EOS_TOKEN, UNK_TOKEN, PAD_TOKEN
 from loss import VonMisesFisherLoss
 
@@ -41,7 +44,7 @@ def idx_to_TOKENs(predictions, trg_vocab):
         mapped_predictions.append(' '.join(mapped_example))
     return mapped_predictions
 
-def eval(model, loss_function, test_iter, args):
+def eval(model, loss_function, test_iter, args) -> Any:
     mode = model.training
     model.eval()
 
@@ -50,17 +53,29 @@ def eval(model, loss_function, test_iter, args):
     loss_tot = 0
     eval_results = {}
     predictions = []
+    is_vmf_loss = isinstance(loss_function, VonMisesFisherLoss)
 
     for batch in tqdm.tqdm(test_iter):
         scores = model.forward(batch.src, batch.trg)
-        if isinstance(loss_function, VonMisesFisherLoss):
+        if is_vmf_loss:
+            # Remove first elem of batch.trg which is start token.
             target = model.decoder.embedding(batch.trg[1:,:].view(-1))
         else:
             target = batch.trg[1:,:].view(-1)
         loss = loss_function(scores[:-1,:,:].view(-1, scores.shape[2]), target)
         loss_tot += loss.item()
-        preds = scores[:-1,:,:].argmax(2).squeeze()
-        correct += sum((preds.view(-1) == batch.trg[1:,:].view(-1))).item()
+        if is_vmf_loss:
+            # TODO bb: I dont' know why the last elem is removed.
+            pred_embeds = scores[:-1,:,:].reshape(-1, scores.shape[-1])
+            preds = utils.get_nearest_neighbor(
+                pred_embeds,
+                model.decoder.embedding.weight,
+                return_indexes=True,
+            )
+            correct += (preds.view(-1) == batch.trg[1:,:].view(-1)).sum().item()
+        else:
+            preds = scores[:-1,:,:].argmax(2).squeeze()
+            correct += (preds.view(-1) == batch.trg[1:,:].view(-1)).sum().item()
         total += len(preds.view(-1))
         if args['write_to_file']:
             predictions += list(preds.transpose(0,1).tolist())

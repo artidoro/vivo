@@ -3,6 +3,7 @@ import torch.nn as nn
 from torch.nn import TransformerEncoder, TransformerEncoderLayer,TransformerDecoderLayer
 
 import loss
+import utils
 
 class AttentionEncoderDecoder(nn.Module):
     def __init__(self, src_vocab, trg_vocab, **kargs):
@@ -173,6 +174,10 @@ class AttentionDecoder(nn.Module):
                 output_projected = self.linear1(output)
                 outputs.append(output_projected)
             else:
+                output = utils.get_nearest_neighbor(
+                    output,
+                    self.embedding.weight
+                )
                 outputs.append(output)
         return torch.cat(outputs, 0)
 
