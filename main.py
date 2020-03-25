@@ -16,7 +16,7 @@ def parse_args(args):
     parser = argparse.ArgumentParser(description='Arguments for the text classification model.')
     # Data related.
     parser.add_argument('--min_freq', default=1, type=int)
-    parser.add_argument('--max_len', default=sys.maxsize, type=int,
+    parser.add_argument('--max_len', default=256, type=int,
         help='Filters inputs to be at most the specified length.')
     #parser.add_argument('--test_path', default='../topicclass/topicclass_test.txt')
     #parser.add_argument('--valid_path', default='../topicclass/topicclass_valid.txt')
@@ -137,6 +137,8 @@ if __name__ == '__main__':
             val_iter,
             args
         )
+        evaluation.decode(model, val_iter, args['max_decoding_len'])
+        # def decode(model, test_iter, args):
 
     elif args['mode'] == 'eval':
         logger.info('Starting evaluation.')

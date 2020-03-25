@@ -1,4 +1,5 @@
 import torch
+from torch import Tensor
 import torch.nn as nn
 from torch.nn import TransformerEncoder, TransformerEncoderLayer,TransformerDecoderLayer
 
@@ -151,11 +152,24 @@ class AttentionDecoder(nn.Module):
             out_size=kwargs['dec_embed_size'])
         if self.xent:
             self.linear1 = nn.Linear(kwargs['dec_embed_size'], vocab_size)
+        # TODO Stop dropout at eval time.
         self.dropout = nn.Dropout(kwargs['dropout'])
 
         # Weight tying.
         if self.xent and kwargs['tie_embed']:
             self.linear1.weight = self.embedding.weight
+
+    def step(
+        self,
+        token_embedding: Tensor,
+        model_output: Tensor,
+        hidden: Tensor,
+        h_encoder: Tensor,
+    ):
+        input_combined = torch.cat([token_embedding, model_output], dim=-1)
+        h_decoder, hidden = self.lstm(input_combined, hidden)
+        attended_output = self.global_attn(h_decoder, h_encoder)
+        return self.dropout(attended_output), hidden
 
     def forward(self, trg_batch, h_encoder):
         trg_embeddings = self.embedding(trg_batch)
@@ -166,20 +180,18 @@ class AttentionDecoder(nn.Module):
         outputs = []
         for i in range(trg_embeddings.shape[0]):
             trg_embed = trg_embeddings[i:i+1,:,:] # t=1 x b x d
-            input_combined = torch.cat([trg_embed, output], dim=-1)
-            h_decoder, hidden = self.lstm(input_combined, hidden)
-            attended_output = self.global_attn(h_decoder, h_encoder)
-            output = self.dropout(attended_output)
+            output, hidden = self.step(trg_embed, output, hidden, h_encoder)
+            # input_combined = torch.cat([trg_embed, output], dim=-1)
+            # h_decoder, hidden = self.lstm(input_combined, hidden)
+            # attended_output = self.global_attn(h_decoder, h_encoder)
+            # output = self.dropout(attended_output)
             if self.xent:
                 output_projected = self.linear1(output)
                 outputs.append(output_projected)
             else:
-                output = utils.get_nearest_neighbor(
-                    output,
-                    self.embedding.weight
-                )
                 outputs.append(output)
         return torch.cat(outputs, 0)
+
 
 model_dict = {
     'lstm_attn': AttentionEncoderDecoder,
