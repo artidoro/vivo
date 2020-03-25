@@ -26,16 +26,16 @@ def parse_args(args):
     # Modeling.
     parser.add_argument('--device', default='cpu', help='Select cuda for the gpu.')
     parser.add_argument('--model_name', default='lstm_attn')
-    parser.add_argument('--fasttext_embeds', default=True, type=bool)
     parser.add_argument('--loss_function', default='xent')
-    parser.add_argument('--tie_embed', default=True, type=bool)
-    parser.add_argument('--input_feed', default=True, type=bool)
-    parser.add_argument('--unk_replace', default=True, type=bool)
+    parser.add_argument('--no_fasttext_embeds', action='store_false')
+    parser.add_argument('--no_tie_embed', action='store_false')
+    parser.add_argument('--no_input_feed', action='store_false')
+    parser.add_argument('--no_unk_replace', action='store_false')
     # Encoder.
     parser.add_argument('--enc_embed_size', default=300, type=int)
     parser.add_argument('--enc_hidden_size', default=100, type=int)
     parser.add_argument('--enc_num_layers', default=1, type=int)
-    parser.add_argument('--enc_bidirectional', default=True, type=bool)
+    parser.add_argument('--no_enc_bidirectional', action='store_false')
     # Decoder.
     parser.add_argument('--dec_embed_size', default=300, type=int)
     parser.add_argument('--dec_hidden_size', default=100, type=int)
