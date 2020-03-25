@@ -122,7 +122,10 @@ if __name__ == '__main__':
                 ignore_index=de_field.vocab.stoi[de_field.pad_token]
             )
         elif args["loss_function"] == "vmf":
-            loss_function = loss_dict["vmf"](args["dec_embed_size"])
+            loss_function = loss_dict["vmf"](
+                args["dec_embed_size"],
+                device=args["device"],
+            )
         else:
             raise ValueError(f"Unknown loss function: {args['loss_function']}")
         train.train(
