@@ -67,7 +67,7 @@ if __name__ == '__main__':
 
     # Initialize logging.
     checkpoint_path = os.path.join('log', args['checkpoint_path'])
-    logger = logging_utils.setup_logging(logger_name='logger', path=checkpoint_path)
+    logger = logging_utils.setup_logging(logger_name='vivo_logger', path=checkpoint_path)
     logger.info('Starting with args:\n{}'.format(pprint.pformat(args)))
 
     # Load the data.

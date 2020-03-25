@@ -9,7 +9,7 @@ import evaluation
 from loss import VonMisesFisherLoss
 
 def train(model, optimizer, scheduler, loss_function, train_iter, val_iter, args):
-    logger = logging.getLogger('logger')
+    logger = logging.getLogger('vivo_logger')
 
     for epoch in range(args['train_epochs']):
         logger.info('Starting training for epoch {} of {}.'.format(epoch+1, args['train_epochs']))

@@ -17,7 +17,7 @@ def write_predictions(predictions, checkpoint_path):
     # Datetime object containing current date and time.
     now = datetime.now()
     dt_string = now.strftime("%d-%m-%Y_%H:%M:%S")
-    logger = logging.getLogger('logger')
+    logger = logging.getLogger('vivo_logger')
     logger.info('Saving Predictions to file: {}'.format(dt_string))
 
     # Checkpoint path.
