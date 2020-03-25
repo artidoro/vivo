@@ -167,7 +167,6 @@ class AttentionDecoder(nn.Module):
         )
         if self.xent:
             self.linear1 = nn.Linear(kwargs["dec_embed_size"], vocab_size)
-        # TODO Stop dropout at eval time.
         self.dropout = nn.Dropout(kwargs["dropout"])
 
         # Weight tying.
@@ -208,29 +207,37 @@ class AttentionDecoder(nn.Module):
         self, h_encoder: Tensor, max_decoding_len: int, bos_idx: int, eos_idx: int,
     ) -> List[List[int]]:
         bos_idx_tensor = torch.LongTensor([bos_idx]).to(self.embedding.weight.device)
-        bos_embed = self.embedding(bos_idx_tensor)
         batch_size = h_encoder.shape[1]
-        decoded_embeds = [bos_embed.reshape(1, -1).repeat(1, batch_size, 1)]
+        decoded_embeds = []
         model_out = output = torch.zeros(
             [1, batch_size, self.embedding.weight.shape[1]]
         ).to(self.embedding.weight.device)
         hidden = None
-        decoded_idxs = [np.array([[bos_idx]]).repeat(batch_size, 1)]
+        decoded_idxs = [
+            torch.LongTensor([[bos_idx]])
+            .repeat(1, batch_size)
+            .to(self.embedding.weight.device)
+        ]
         eos_generated = np.zeros((1, batch_size), dtype=np.bool)
         while len(decoded_idxs) < max_decoding_len and (eos_generated == 0).any():
-            model_out, hidden = self.step(  ###
+            decoded_embeds.append(self.embedding(decoded_idxs[-1]))
+            model_out, hidden = self.step(
                 decoded_embeds[-1], model_out, hidden, h_encoder,
             )
             if self.xent:
                 model_sm = self.linear1(model_out)
-                decoded_idxs.append(model_sm.argmax(-1).cpu().numpy())
-                decoded_embeds.append(self.embedding(model_sm.argmax(-1)))
+                decoded_idxs.append(model_sm.argmax(-1))
             else:
                 # TODO Handle vMF here with nearest neighbor
-                pass
-            eos_generated += decoded_idxs[-1] == eos_idx
+                raise NotImplementedError()
+            eos_generated += (decoded_idxs[-1] == eos_idx).cpu().numpy()
 
-        return np.array(decoded_idxs).squeeze().transpose(1, 0).tolist()
+        return (
+            np.array([x.cpu().numpy() for x in decoded_idxs])
+            .squeeze()
+            .transpose(1, 0)
+            .tolist()
+        )
 
 
 model_dict = {

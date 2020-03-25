@@ -138,7 +138,6 @@ if __name__ == '__main__':
             args
         )
         evaluation.decode(model, val_iter, args['max_decoding_len'])
-        # def decode(model, test_iter, args):
 
     elif args['mode'] == 'eval':
         logger.info('Starting evaluation.')

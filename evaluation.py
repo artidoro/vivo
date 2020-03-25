@@ -2,7 +2,7 @@ from datetime import datetime
 import logging
 import math
 import os
-from typing import Any
+from typing import Any, List, Tuple, Dict
 
 import sacrebleu
 from tqdm import tqdm
@@ -67,7 +67,6 @@ def eval(model, loss_function, test_iter, args) -> Any:
         loss = loss_function(scores[:-1,:,:].view(-1, scores.shape[2]), target)
         loss_tot += loss.item()
         if is_vmf_loss:
-            # TODO bb: I dont' know why the last elem is removed.
             pred_embeds = scores[:-1,:,:].reshape(-1, scores.shape[-1])
             preds = utils.get_nearest_neighbor(
                 pred_embeds,
@@ -95,8 +94,8 @@ def eval(model, loss_function, test_iter, args) -> Any:
     model.train(mode)
     return eval_results
 
-def _idxs_to_sentences(idxss):
-    raw_sentences = [[model.trg_vocab.itos[i] for i in idxs] for idxs in idxss]
+def _idxs_to_sentences(idxss, vocab) -> List[str]:
+    raw_sentences = [[vocab.itos[i] for i in idxs] for idxs in idxss]
     sentences = []
     for rs in raw_sentences:
         s = []
@@ -111,39 +110,30 @@ def _idxs_to_sentences(idxss):
     return sentences
 
 
-def greedy_decoding(model, test_iter, max_decoding_len):
+def greedy_decoding(model, test_iter, max_decoding_len) -> Tuple[List[str], List[str]]:
     mode = model.training
     model.eval()
-
     ground_truth = []
     predictions = []
     with torch.no_grad():
         for batch in tqdm(test_iter):
             ground_truth += batch.trg.transpose(1, 0).tolist()
             predictions += model.decode(batch.src, max_decoding_len)
-
-    # TODO What is this?
-    # model.train(mode)
-    # TODO move this function to a better place
-    prediction_strings = idxs_to_sentences(predictions)
-    gt_strings = idxs_to_sentences(ground_truth)
+    model.train(mode)
+    prediction_strings = _idxs_to_sentences(predictions, model.trg_vocab)
+    gt_strings = _idxs_to_sentences(ground_truth, model.trg_vocab)
     assert len(gt_strings) == len(prediction_strings)
     return prediction_strings, gt_strings
 
 
 def decode(
     model, test_iter, max_decoding_len, write_to_file=False, checkpoint_path=None,
-):
-    """
-    TODO: Think about returning more than just bleu (ex: ppx, loss, ...).
-    """
+) -> Dict:
+    # TODO: Think about returning more than just bleu (ex: ppx, loss, ...).
     predictions, ground_truth = greedy_decoding(model, test_iter, max_decoding_len)
     bleu = {"bleu": sacrebleu.corpus_bleu(predictions, [ground_truth])}
-    print(bleu["bleu"].score)
-    print(ground_truth[0])
-    print(predictions[0])
-    print(ground_truth[1])
-    print(predictions[1])
+    logger = logging.getLogger("vivo_logger")
+    logger.info(f"Test BLEU Score: {bleu['bleu'].score:.2f}")
     if write_to_file:
         assert checkpoint_path is not None
         write_predictions(predictions, checkpoint_path)
