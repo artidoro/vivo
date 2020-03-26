@@ -88,10 +88,6 @@ if __name__ == '__main__':
         trg_fasttext_embeds=args['trg_fasttext_embeds']
     )
 
-    # REMOVE:
-    train_iter = [item for i, item in enumerate(train_iter) if i < 10]
-    val_iter = train_iter
-
     # Initialize model and optimizer. This requires loading checkpoint if specified in the arguments.
     if args['load_checkpoint_path'] is None:
         model = model_dict[args['model_name']](src_field.vocab, trg_field.vocab, **args)
