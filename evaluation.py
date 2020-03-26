@@ -34,6 +34,8 @@ def idx_to_TOKENs(predictions, trg_vocab, src_sents = None, copy_lut = None, att
 
     attn: is the stacked attn vectors
     """
+
+    import pdb;pdb.set_trace()
     mapped_predictions = []
     for pred_idx, prediction_example in enumerate(predictions):
         mapped_example = []
@@ -42,9 +44,8 @@ def idx_to_TOKENs(predictions, trg_vocab, src_sents = None, copy_lut = None, att
             if word is EOS_TOKEN:
                 break
             elif word is UNK_TOKEN and type(src_sents) != type(None) and type(attn) != type(None) and type(copy_lut) != type(None):
-                import pdb;pdb.set_trace()
                 _, max_attn_idx = attn[pred_idx,index_idx].max(-1)
-                word = copy_lut.itos[src[pred_idx, max_attn_idx]]
+                word = copy_lut.itos[src_sents[pred_idx, max_attn_idx]]
             mapped_example.append(word)
         mapped_predictions.append(' '.join(mapped_example))
     return mapped_predictions
@@ -59,7 +60,6 @@ def eval(model, loss_function, test_iter, args):
     eval_results = {}
     predictions = []
     prediction_strings = []
-    import pdb; pdb.set_trace()
     for batch in tqdm.tqdm(test_iter):
         scores = model.forward(batch.src, batch.trg)
         attn_vectors = torch.stack(model.decoder.attention).permute(1,0,2)
