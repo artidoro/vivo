@@ -28,7 +28,8 @@ def torchtext_iterators(
     batch_size,
     min_freq,
     max_len,
-    load_fasttext_embeds
+    src_fasttext_embeds,
+    trg_fasttext_embeds
 ):
     '''
     Validation data TED TEST 2013-2014
@@ -73,7 +74,11 @@ def torchtext_iterators(
         sort_key=lambda x: len(x.src))
 
     # Load pretrained embeddings.
-    if load_fasttext_embeds:
+    if src_fasttext_embeds:
+        src_field.vocab.load_vectors(
+            vectors=torchtext.vocab.FastText(language=src_language)
+        )
+    if trg_fasttext_embeds:
         trg_field.vocab.load_vectors(
             vectors=torchtext.vocab.FastText(language=trg_language)
         )
