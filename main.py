@@ -21,25 +21,25 @@ def parse_args(args):
     parser.add_argument('--src_language', default='de',
         help='Choose "de", "fr", or "en".')
     parser.add_argument('--trg_language', default='en',
-        help='Choose "de", "fr", or"en".')
+        help='Choose "de", "fr", or,"en".')
 
     # Modeling.
     parser.add_argument('--device', default='cpu', help='Select cuda for the gpu.')
     parser.add_argument('--model_name', default='lstm_attn')
     parser.add_argument('--loss_function', default='xent')
-    parser.add_argument('--no_fasttext_embeds', action='store_false')
-    parser.add_argument('--no_tie_embed', action='store_false')
-    parser.add_argument('--no_input_feed', action='store_false')
-    parser.add_argument('--no_unk_replace', action='store_false')
+    parser.add_argument('--fasttext_embeds', action='store_false')
     # Encoder.
     parser.add_argument('--enc_embed_size', default=300, type=int)
     parser.add_argument('--enc_hidden_size', default=100, type=int)
     parser.add_argument('--enc_num_layers', default=1, type=int)
-    parser.add_argument('--no_enc_bidirectional', action='store_false')
+    parser.add_argument('--enc_bidirectional', action='store_true')
     # Decoder.
     parser.add_argument('--dec_embed_size', default=300, type=int)
     parser.add_argument('--dec_hidden_size', default=100, type=int)
     parser.add_argument('--dec_num_layers', default=1, type=int)
+    parser.add_argument('--input_feed', action='store_true')
+    parser.add_argument('--tie_embed', action='store_true')
+    parser.add_argument('--unk_replace', action='store_true')
 
     # Training.
     parser.add_argument('--mode', default='train')
@@ -83,9 +83,10 @@ if __name__ == '__main__':
         batch_size=args['batch_size'],
         min_freq=args['min_freq'],
         max_len=args['max_len'],
-        load_fasttext_embeds=args['fasttext_embeds']
+        load_fasttext_embeds=args['no_fasttext_embeds']
     )
 
+    # REMOVE:
     train_iter = [item for i, item in enumerate(train_iter) if i < 10]
     val_iter = train_iter
 
