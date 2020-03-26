@@ -83,7 +83,7 @@ if __name__ == '__main__':
     val_iter = train_iter
 
     # Initialize model and optimizer. This requires loading checkpoint if specified in the arguments.
-    if args['load_checkpoint_path'] == None:
+    if args['load_checkpoint_path'] is None:
         model = model_dict[args['model_name']](de_field.vocab, en_field.vocab, **args)
         model.to(torch.device(args['device']))
         optimizer = torch.optim.Adam(model.parameters(), lr=args['lr'],
@@ -142,7 +142,11 @@ if __name__ == '__main__':
         logger.info('Starting evaluation.')
         evaluation_results = {}
         # evaluation_results['train'] = utils.eval(model, train_iter, args)
-        evaluation_results['valid'] = evaluation.decode(model, val_iter, args)
+        evaluation_results['valid'] = evaluation.decode(
+            model,
+            val_iter,
+            args['max_decoding_len'],
+        )
         logger.info('\n' + pprint.pformat(evaluation_results), args)
 
     elif args['mode'] == 'test':

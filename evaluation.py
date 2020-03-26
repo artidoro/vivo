@@ -131,7 +131,7 @@ def decode(
 ) -> Dict:
     # TODO: Think about returning more than just bleu (ex: ppx, loss, ...).
     predictions, ground_truth = greedy_decoding(model, test_iter, max_decoding_len)
-    bleu = {"bleu": sacrebleu.corpus_bleu(predictions, [ground_truth])}
+    bleu = {"bleu": sacrebleu.corpus_bleu(predictions, [ground_truth]).score}
     if write_to_file:
         assert checkpoint_path is not None
         write_predictions(predictions, checkpoint_path)
