@@ -1,8 +1,8 @@
 from datetime import datetime
 import logging
 import math
-import os
-from typing import Any, List, Tuple, Dict
+from pathlib import Path
+from typing import Any, List, Tuple, Dict, Union
 
 import sacrebleu
 from tqdm import tqdm
@@ -13,21 +13,24 @@ import utils
 from utils import BOS_TOKEN, EOS_TOKEN, UNK_TOKEN, PAD_TOKEN
 from loss import VonMisesFisherLoss
 
-def write_predictions(predictions, checkpoint_path):
+PathLike = Union[Path, str]
+
+
+def write_predictions(predictions: List[str], checkpoint_path: PathLike) -> None:
+    log_path = Path("log")
+    dir_path = log_path / checkpoint_path
     # Datetime object containing current date and time.
     now = datetime.now()
     dt_string = now.strftime("%d-%m-%Y_%H:%M:%S")
-    logger = logging.getLogger('vivo_logger')
-    logger.info('Saving Predictions to file: {}'.format(dt_string))
-
-    # Checkpoint path.
-    checkpoint_path = os.path.join('log', checkpoint_path)
-    if not os.path.exists(checkpoint_path):
-        os.makedirs(checkpoint_path)
-    file_path = os.path.join(checkpoint_path, 'prediction_' + dt_string + '.txt')
-    with open(file_path, 'w') as out_file:
+    logger = logging.getLogger("vivo_logger")
+    logger.info(f"Saving Predictions to file: {dt_string}")
+    if not dir_path.exists():
+        dir_path.mkdir()
+    file_path = dir_path / f"prediction_{dt_string}.txt"
+    with file_path.open("w") as out_file:
         for sentence in predictions:
-            out_file.write(sentence + '\n')
+            out_file.write(sentence + "\n")
+
 
 def idx_to_TOKENs(predictions, trg_vocab):
     """
@@ -89,7 +92,7 @@ def eval(model, loss_function, test_iter, args) -> Any:
     if args['write_to_file']:
         # Convert indices to words.
         prediction_strings = idx_to_TOKENs(predictions, model.trg_vocab)
-        write_predictions(prediction_strings, args)
+        write_predictions(prediction_strings, args["checkpoint_path"])
 
     model.train(mode)
     return eval_results
