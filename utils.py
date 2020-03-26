@@ -96,9 +96,13 @@ def get_nearest_neighbor(
 ) -> torch.Tensor:
     if neighbor_norms is None:
         neighbor_norms = neighbors.norm(dim=-1)
-    norms = neighbor_norms.repeat(x.shape[0], 1) * x.norm(dim=-1).unsqueeze(-1)
-    dots = (neighbors.unsqueeze(0).repeat(x.shape[0], 1, 1) @ x.unsqueeze(-1)).squeeze()
+    norms = neighbor_norms.repeat(*(1,)*(len(x.shape)-1), 1) * x.norm(dim=-1).unsqueeze(-1)
+    dots = (
+        neighbors.unsqueeze(0).repeat(*(1,)*(len(x.shape) - 1), 1, 1) @ x.unsqueeze(-1)
+    ).squeeze().argmax(-1)
+    return dots
     if return_indexes:
         return (dots / norms).argmax(-1)
     else:
+        raise NotImplementedError()
         return neighbors[(dots / norms).argmax(-1)]

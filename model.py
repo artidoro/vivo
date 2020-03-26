@@ -227,13 +227,13 @@ class AttentionDecoder(nn.Module):
         ).to(self.embedding.weight.device)
         hidden = None
         decoded_idxs = [
-            torch.LongTensor([[bos_idx]])
-            .repeat(1, batch_size)
+            torch.LongTensor([bos_idx])
+            .repeat(batch_size)
             .to(self.embedding.weight.device)
         ]
         eos_generated = np.zeros((1, batch_size), dtype=np.bool)
         while len(decoded_idxs) < max_decoding_len and (eos_generated == 0).any():
-            decoded_embeds = self.embedding(decoded_idxs[-1])
+            decoded_embeds = self.embedding(decoded_idxs[-1]).unsqueeze(0)
             model_out, hidden = self.step(
                 decoded_embeds, model_out, hidden, h_encoder,
             )
@@ -241,8 +241,12 @@ class AttentionDecoder(nn.Module):
                 model_sm = self.linear1(model_out)
                 decoded_idxs.append(model_sm.argmax(-1))
             else:
-                # TODO Handle vMF here with nearest neighbor
-                raise NotImplementedError()
+                idxs = utils.get_nearest_neighbor(
+                    model_out,
+                    self.embedding.weight,
+                    return_indexes=True
+                )
+                decoded_idxs.append(idxs)
             eos_generated += (decoded_idxs[-1] == eos_idx).cpu().numpy()
 
         return (

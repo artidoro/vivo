@@ -57,11 +57,19 @@ def eval(model, loss_function, test_iter, args) -> Any:
         loss_tot += loss.item()
         if is_vmf_loss:
             pred_embeds = scores[:-1,:,:].reshape(-1, scores.shape[-1])
-            preds = utils.get_nearest_neighbor(
-                pred_embeds,
-                model.decoder.embedding.weight,
-                return_indexes=True,
-            )
+            pred_embeds = scores[:-1,:,:]
+            eval_batch_size = 16
+            def batch_predict(i, x):
+                return utils.get_nearest_neighbor(
+                    x[:, i:i+eval_batch_size, ...],
+                    model.decoder.embedding.weight,
+                    return_indexes=True,
+                )
+
+            _preds = [
+                batch_predict(i, pred_embeds)
+                for i in range(0, pred_embeds.shape[1], eval_batch_size)]
+            preds = torch.cat(_preds, dim=1)
             correct += (preds.view(-1) == batch.trg[1:,:].view(-1)).sum().item()
         else:
             preds = scores[:-1,:,:].argmax(2).squeeze()
