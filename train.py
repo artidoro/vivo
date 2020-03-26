@@ -1,12 +1,15 @@
 from datetime import datetime
 import logging
+import os
+import pprint
 import torch
 import tqdm
 
-import eval
+import evaluation
+from loss import VonMisesFisherLoss
 
 def train(model, optimizer, scheduler, loss_function, train_iter, val_iter, args):
-    logger = logging.getLogger('logger')
+    logger = logging.getLogger('vivo_logger')
 
     for epoch in range(args['train_epochs']):
         logger.info('Starting training for epoch {} of {}.'.format(epoch+1, args['train_epochs']))
@@ -14,7 +17,11 @@ def train(model, optimizer, scheduler, loss_function, train_iter, val_iter, args
         for batch in tqdm.tqdm(train_iter):
             optimizer.zero_grad()
             scores = model(batch.src, batch.trg)
-            loss = loss_function(scores[:-1,:,:].view(-1, scores.shape[2]), batch.trg[1:,:].view(-1))
+            if isinstance(loss_function, VonMisesFisherLoss):
+                target = model.decoder.embedding(batch.trg[1:,:].view(-1))
+            else:
+                target = batch.trg[1:,:].view(-1)
+            loss = loss_function(scores[:-1,:,:].view(-1, scores.shape[2]), target)
             loss.backward()
             optimizer.step()
             loss_tot += loss.item()
@@ -26,7 +33,7 @@ def train(model, optimizer, scheduler, loss_function, train_iter, val_iter, args
             logger.info('Starting evaluation.')
             evaluation_results = {}
             #evaluation_results['train'] = eval(model, train_iter, args)
-            evaluation_results['valid'] = eval.eval(model, loss_function, val_iter, args)
+            evaluation_results['valid'] = evaluation.eval(model, loss_function, val_iter, args)
             logger.info('\n' + pprint.pformat(evaluation_results))
 
             # Update the scheduler.
