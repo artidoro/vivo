@@ -1,8 +1,9 @@
 from typing import List, Tuple
 
+import math
+import numpy as np
 from torch import Tensor
 from torch.nn import TransformerEncoder, TransformerEncoderLayer,TransformerDecoderLayer
-import numpy as np
 import torch
 import torch.nn as nn
 
@@ -15,8 +16,8 @@ class AttentionEncoderDecoder(nn.Module):
         self.src_vocab = src_vocab
         self.trg_vocab = trg_vocab
 
-        self.encoder = EncoderLSTM(len(src_vocab), **kargs)
-        self.decoder = AttentionDecoder(len(trg_vocab), **kargs)
+        self.encoder = EncoderLSTM(src_vocab, **kargs)
+        self.decoder = AttentionDecoder(trg_vocab, **kargs)
 
     def forward(self, src, trg):
         h_encoder = self.encoder(src)
@@ -113,9 +114,11 @@ class Transformer(nn.Module):
         return self.output_layer(decoder_output)
 
 class EncoderLSTM(nn.Module):
-    def __init__(self, vocab_size, **kwargs):
+    def __init__(self, vocab, **kwargs):
         super(EncoderLSTM, self).__init__()
-        self.embedding = nn.Embedding(vocab_size, kwargs['enc_embed_size'])
+        self.embedding = nn.Embedding(len(vocab), kwargs['enc_embed_size'])
+        if kwargs['src_fasttext_embeds']:
+            self.embedding.weight = nn.Parameter(vocab.vectors)
         self.lstm = nn.LSTM(kwargs['enc_embed_size'], kwargs['enc_hidden_size'],
             kwargs['enc_num_layers'], dropout=kwargs['dropout'],
             bidirectional=kwargs['enc_bidirectional'])
@@ -147,15 +150,19 @@ class GlobalAttention(nn.Module):
         return output_resize
 
 class AttentionDecoder(nn.Module):
-    def __init__(self, vocab_size, **kwargs):
+    def __init__(self, vocab, **kwargs):
         super(AttentionDecoder, self).__init__()
         self.xent = kwargs["loss_function"] == "xent"
         # LSTM input dimension changes with input feeding.
         lstm_input_size = kwargs["dec_embed_size"]
         if kwargs["input_feed"]:
             lstm_input_size *= 2
+        self.input_feed = kwargs["input_feed"]
 
-        self.embedding = nn.Embedding(vocab_size, kwargs["dec_embed_size"])
+        self.embedding = nn.Embedding(len(vocab), kwargs["dec_embed_size"])
+        if kwargs['trg_fasttext_embeds']:
+            self.embedding.weight = nn.Parameter(vocab.vectors)
+
         self.lstm = nn.LSTM(
             lstm_input_size,
             kwargs["dec_hidden_size"],
@@ -168,7 +175,7 @@ class AttentionDecoder(nn.Module):
             out_size=kwargs["dec_embed_size"],
         )
         if self.xent:
-            self.linear1 = nn.Linear(kwargs["dec_embed_size"], vocab_size)
+            self.linear1 = nn.Linear(kwargs["dec_embed_size"], len(vocab))
         self.dropout = nn.Dropout(kwargs["dropout"])
 
         # Weight tying.
@@ -183,7 +190,9 @@ class AttentionDecoder(nn.Module):
         hidden: Tensor,
         h_encoder: Tensor,
     ) -> Tuple[Tensor, Tuple[Tensor, Tensor]]:
-        input_combined = torch.cat([token_embedding, model_output], dim=-1)
+        input_combined = token_embedding
+        if self.input_feed:
+            input_combined = torch.cat([input_combined, model_output], dim=-1)
         h_decoder, hidden = self.lstm(input_combined, hidden)
         attended_output = self.global_attn(h_decoder, h_encoder)
         self.attention.append(self.global_attn.alphas) # num_target_words x b x num_src_words
