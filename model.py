@@ -208,7 +208,6 @@ class AttentionDecoder(nn.Module):
     ) -> List[List[int]]:
         bos_idx_tensor = torch.LongTensor([bos_idx]).to(self.embedding.weight.device)
         batch_size = h_encoder.shape[1]
-        decoded_embeds = []
         model_out = output = torch.zeros(
             [1, batch_size, self.embedding.weight.shape[1]]
         ).to(self.embedding.weight.device)
@@ -220,9 +219,9 @@ class AttentionDecoder(nn.Module):
         ]
         eos_generated = np.zeros((1, batch_size), dtype=np.bool)
         while len(decoded_idxs) < max_decoding_len and (eos_generated == 0).any():
-            decoded_embeds.append(self.embedding(decoded_idxs[-1]))
+            decoded_embeds = self.embedding(decoded_idxs[-1])
             model_out, hidden = self.step(
-                decoded_embeds[-1], model_out, hidden, h_encoder,
+                decoded_embeds, model_out, hidden, h_encoder,
             )
             if self.xent:
                 model_sm = self.linear1(model_out)

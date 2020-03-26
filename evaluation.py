@@ -132,8 +132,6 @@ def decode(
     # TODO: Think about returning more than just bleu (ex: ppx, loss, ...).
     predictions, ground_truth = greedy_decoding(model, test_iter, max_decoding_len)
     bleu = {"bleu": sacrebleu.corpus_bleu(predictions, [ground_truth])}
-    logger = logging.getLogger("vivo_logger")
-    logger.info(f"Test BLEU Score: {bleu['bleu'].score:.2f}")
     if write_to_file:
         assert checkpoint_path is not None
         write_predictions(predictions, checkpoint_path)
