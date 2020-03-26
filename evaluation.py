@@ -45,7 +45,6 @@ def eval(model, loss_function, test_iter, args) -> Any:
     predictions = []
     prediction_strings = []
     is_vmf_loss = isinstance(loss_function, VonMisesFisherLoss)
-    #import pdb;pdb.set_trace()
     for batch in tqdm(test_iter):
         scores = model.forward(batch.src, batch.trg)
         attn_vectors = torch.stack(model.decoder.attention).permute(1,0,2)
