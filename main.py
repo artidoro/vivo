@@ -16,7 +16,7 @@ def parse_args(args):
     parser = argparse.ArgumentParser(description='Arguments for the text classification model.')
     # Data related.
     parser.add_argument('--min_freq', default=1, type=int)
-    parser.add_argument('--max_len', default=sys.maxsize, type=int,
+    parser.add_argument('--max_len', default=256, type=int,
         help='Filters inputs to be at most the specified length.')
     #parser.add_argument('--test_path', default='../topicclass/topicclass_test.txt')
     #parser.add_argument('--valid_path', default='../topicclass/topicclass_valid.txt')
@@ -67,19 +67,23 @@ if __name__ == '__main__':
 
     # Initialize logging.
     checkpoint_path = os.path.join('log', args['checkpoint_path'])
-    logger = logging_utils.setup_logging(logger_name='logger', path=checkpoint_path)
+    logger = logging_utils.setup_logging(logger_name='vivo_logger', path=checkpoint_path)
     logger.info('Starting with args:\n{}'.format(pprint.pformat(args)))
 
     # Load the data.
     logger.info('Loading data and building iterators.')
     train_iter, val_iter, test, de_field, en_field = utils.torchtext_iterators(
-        device=args['device'], batch_size=args['batch_size'], min_freq=args['min_freq'])
+        device=args['device'],
+        batch_size=args['batch_size'],
+        min_freq=args['min_freq'],
+        max_len=args['max_len']
+    )
 
     train_iter = [item for i, item in enumerate(train_iter) if i < 10]
     val_iter = train_iter
 
     # Initialize model and optimizer. This requires loading checkpoint if specified in the arguments.
-    if args['load_checkpoint_path'] == None:
+    if args['load_checkpoint_path'] is None:
         model = model_dict[args['model_name']](de_field.vocab, en_field.vocab, **args)
         model.to(torch.device(args['device']))
         optimizer = torch.optim.Adam(model.parameters(), lr=args['lr'],
@@ -113,18 +117,40 @@ if __name__ == '__main__':
 
     if args['mode'] == 'train':
         logger.info('Starting training.')
-        train.train(model, optimizer, scheduler,
-            loss_dict[args['loss_function']](ignore_index=de_field.vocab.stoi[de_field.pad_token]),
-            train_iter, val_iter, args)
+        if args["loss_function"] == "xent":
+            loss_function = loss_dict["xent"](
+                ignore_index=de_field.vocab.stoi[de_field.pad_token]
+            )
+        elif args["loss_function"] == "vmf":
+            loss_function = loss_dict["vmf"](
+                args["dec_embed_size"],
+                device=args["device"],
+            )
+        else:
+            raise ValueError(f"Unknown loss function: {args['loss_function']}")
+        train.train(
+            model,
+            optimizer,
+            scheduler,
+            loss_function,
+            train_iter,
+            val_iter,
+            args
+        )
 
     elif args['mode'] == 'eval':
         logger.info('Starting evaluation.')
         evaluation_results = {}
         # evaluation_results['train'] = utils.eval(model, train_iter, args)
-        evaluation_results['valid'] = evaluation.decode(model, val_iter, args)
+        evaluation_results['valid'] = evaluation.decode(
+            model,
+            val_iter,
+            args['max_decoding_len'],
+        )
         logger.info('\n' + pprint.pformat(evaluation_results), args)
 
     elif args['mode'] == 'test':
+        raise NotImplementedError()
         logger.info('Starting testing.')
         utils.predict_write_to_file(model, test, args)
         logger.info('Done writing predictions to file.')

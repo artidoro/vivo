@@ -3,6 +3,7 @@ import spacy
 import sys
 import torch
 import torchtext
+from typing import Optional
 
 PAD_TOKEN = '<pad>'
 UNK_TOKEN = '<unk>'
@@ -47,3 +48,18 @@ def torchtext_iterators(device='cpu', batch_size=32,  min_freq=1, max_len=sys.ma
         len(de_field.vocab.itos), len(en_field.vocab.itos)))
 
     return train_iter, val_iter, test, de_field, en_field
+
+def get_nearest_neighbor(
+    x: torch.Tensor,
+    neighbors: torch.Tensor,
+    neighbor_norms: Optional[torch.Tensor] = None,
+    return_indexes: bool = False,
+) -> torch.Tensor:
+    if neighbor_norms is None:
+        neighbor_norms = neighbors.norm(dim=-1)
+    norms = neighbor_norms.repeat(x.shape[0], 1) * x.norm(dim=-1).unsqueeze(-1)
+    dots = (neighbors.unsqueeze(0).repeat(x.shape[0], 1, 1) @ x.unsqueeze(-1)).squeeze()
+    if return_indexes:
+        return (dots / norms).argmax(-1)
+    else:
+        return neighbors[(dots / norms).argmax(-1)]

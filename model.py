@@ -1,6 +1,13 @@
+from typing import List, Tuple
+
+from torch import Tensor
+from torch.nn import TransformerEncoder, TransformerEncoderLayer,TransformerDecoderLayer
+import numpy as np
 import torch
 import torch.nn as nn
-from torch.nn import TransformerEncoder, TransformerEncoderLayer,TransformerDecoderLayer
+
+import loss
+import utils
 
 class AttentionEncoderDecoder(nn.Module):
     def __init__(self, src_vocab, trg_vocab, **kargs):
@@ -14,6 +21,12 @@ class AttentionEncoderDecoder(nn.Module):
     def forward(self, src, trg):
         h_encoder = self.encoder(src)
         return self.decoder(trg, h_encoder)
+
+    def decode(self, src: Tensor, max_decoding_len: int) -> List[List[int]]:
+        h_encoder = self.encoder(src)
+        bos_idx = self.trg_vocab.stoi[utils.BOS_TOKEN]
+        eos_idx = self.trg_vocab.stoi[utils.EOS_TOKEN]
+        return self.decoder.decode(h_encoder, max_decoding_len, bos_idx, eos_idx)
 
 class Transformer(nn.Module):
     ''' Transformer '''
@@ -136,43 +149,58 @@ class GlobalAttention(nn.Module):
 class AttentionDecoder(nn.Module):
     def __init__(self, vocab_size, **kwargs):
         super(AttentionDecoder, self).__init__()
-        self.xent = kwargs['loss_function'] == 'xent'
+        self.xent = kwargs["loss_function"] == "xent"
         # LSTM input dimension changes with input feeding.
-        lstm_input_size = kwargs['dec_embed_size']
-        if kwargs['input_feed']:
+        lstm_input_size = kwargs["dec_embed_size"]
+        if kwargs["input_feed"]:
             lstm_input_size *= 2
 
-        self.embedding = nn.Embedding(vocab_size, kwargs['dec_embed_size'])
-        self.lstm = nn.LSTM(lstm_input_size, kwargs['dec_hidden_size'],
-            num_layers=kwargs['dec_num_layers'], dropout=kwargs['dropout'])
-        self.global_attn = GlobalAttention(query_size=kwargs['dec_hidden_size'],
-            values_size=kwargs['enc_hidden_size'] * (2 ** kwargs['enc_bidirectional']),
-            out_size=kwargs['dec_embed_size'])
+        self.embedding = nn.Embedding(vocab_size, kwargs["dec_embed_size"])
+        self.lstm = nn.LSTM(
+            lstm_input_size,
+            kwargs["dec_hidden_size"],
+            num_layers=kwargs["dec_num_layers"],
+            dropout=kwargs["dropout"],
+        )
+        self.global_attn = GlobalAttention(
+            query_size=kwargs["dec_hidden_size"],
+            values_size=kwargs["enc_hidden_size"] * (2 ** kwargs["enc_bidirectional"]),
+            out_size=kwargs["dec_embed_size"],
+        )
         if self.xent:
-            self.linear1 = nn.Linear(kwargs['dec_embed_size'], vocab_size)
-        self.dropout = nn.Dropout(kwargs['dropout'])
+            self.linear1 = nn.Linear(kwargs["dec_embed_size"], vocab_size)
+        self.dropout = nn.Dropout(kwargs["dropout"])
 
         # Weight tying.
-        if kwargs['tie_embed']:
+        if self.xent and kwargs["tie_embed"]:
             self.linear1.weight = self.embedding.weight
-
         self.attention = []
 
-    def forward(self, trg_batch, h_encoder):
+    def step(
+        self,
+        token_embedding: Tensor,
+        model_output: Tensor,
+        hidden: Tensor,
+        h_encoder: Tensor,
+    ) -> Tuple[Tensor, Tuple[Tensor, Tensor]]:
+        input_combined = torch.cat([token_embedding, model_output], dim=-1)
+        h_decoder, hidden = self.lstm(input_combined, hidden)
+        attended_output = self.global_attn(h_decoder, h_encoder)
+        self.attention.append(self.global_attn.alphas) # num_target_words x b x num_src_words
+        return self.dropout(attended_output), hidden
+
+    def forward(self, trg_batch: Tensor, h_encoder: Tensor) -> Tensor:
         trg_embeddings = self.embedding(trg_batch)
 
-        output = torch.zeros([1, trg_batch.shape[1], trg_embeddings.shape[2]])\
-            .to(self.embedding.weight.device)
+        output = torch.zeros([1, trg_batch.shape[1], trg_embeddings.shape[2]]).to(
+            self.embedding.weight.device
+        )
         hidden = None
         outputs = []
         self.attention = []
         for i in range(trg_embeddings.shape[0]):
-            trg_embed = trg_embeddings[i:i+1,:,:] # t=1 x b x d
-            input_combined = torch.cat([trg_embed, output], dim=-1)
-            h_decoder, hidden = self.lstm(input_combined, hidden)
-            attended_output = self.global_attn(h_decoder, h_encoder)
-            self.attention.append(self.global_attn.alphas) # num_target_words x b x num_src_words
-            output = self.dropout(attended_output)
+            trg_embed = trg_embeddings[i : i + 1, :, :]  # t=1 x b x d
+            output, hidden = self.step(trg_embed, output, hidden, h_encoder)
             if self.xent:
                 output_projected = self.linear1(output)
                 outputs.append(output_projected)
@@ -180,11 +208,48 @@ class AttentionDecoder(nn.Module):
                 outputs.append(output)
         return torch.cat(outputs, 0)
 
+    def decode(
+        self, h_encoder: Tensor, max_decoding_len: int, bos_idx: int, eos_idx: int,
+    ) -> List[List[int]]:
+        bos_idx_tensor = torch.LongTensor([bos_idx]).to(self.embedding.weight.device)
+        batch_size = h_encoder.shape[1]
+        model_out = output = torch.zeros(
+            [1, batch_size, self.embedding.weight.shape[1]]
+        ).to(self.embedding.weight.device)
+        hidden = None
+        decoded_idxs = [
+            torch.LongTensor([[bos_idx]])
+            .repeat(1, batch_size)
+            .to(self.embedding.weight.device)
+        ]
+        eos_generated = np.zeros((1, batch_size), dtype=np.bool)
+        while len(decoded_idxs) < max_decoding_len and (eos_generated == 0).any():
+            decoded_embeds = self.embedding(decoded_idxs[-1])
+            model_out, hidden = self.step(
+                decoded_embeds, model_out, hidden, h_encoder,
+            )
+            if self.xent:
+                model_sm = self.linear1(model_out)
+                decoded_idxs.append(model_sm.argmax(-1))
+            else:
+                # TODO Handle vMF here with nearest neighbor
+                raise NotImplementedError()
+            eos_generated += (decoded_idxs[-1] == eos_idx).cpu().numpy()
+
+        return (
+            np.array([x.cpu().numpy() for x in decoded_idxs])
+            .squeeze()
+            .transpose(1, 0)
+            .tolist()
+        )
+
+
 model_dict = {
-    'lstm_attn': AttentionEncoderDecoder,
-    # 'transformer': Transformer
+    "lstm_attn": AttentionEncoderDecoder,
+    # "transformer": Transformer
 }
 
 loss_dict = {
-    'xent': nn.CrossEntropyLoss
+    "xent": nn.CrossEntropyLoss,
+    "vmf": loss.VonMisesFisherLoss,
 }
