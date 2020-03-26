@@ -125,7 +125,7 @@ if __name__ == '__main__':
         logger.info('Starting training.')
         if args["loss_function"] == "xent":
             loss_function = loss_dict["xent"](
-                ignore_index=src_field.vocab.stoi[src_field.pad_token]
+                ignore_index=trg_field.vocab.stoi[trg_field.pad_token]
             )
         elif args["loss_function"] == "vmf":
             loss_function = loss_dict["vmf"](
