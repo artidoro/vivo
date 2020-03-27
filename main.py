@@ -131,6 +131,7 @@ if __name__ == '__main__':
             loss_function = loss_dict["vmf"](
                 args["dec_embed_size"],
                 device=args["device"],
+                reduction="none"
             )
         else:
             raise ValueError(f"Unknown loss function: {args['loss_function']}")
@@ -141,7 +142,8 @@ if __name__ == '__main__':
             loss_function,
             train_iter,
             val_iter,
-            args
+            args,
+            ignore_index=trg_field.vocab.stoi[trg_field.pad_token],
         )
 
     elif args['mode'] == 'eval':

@@ -15,13 +15,16 @@ class VonMisesFisherLoss(torch.nn.modules.loss._Loss):
     """
 
     def __init__(
-        self, input_dim: int, device: str = "cpu", n_bessel_iters=10, reduction="mean"
+        self,
+        input_dim: int,
+        device: str = "cpu",
+        n_bessel_iters=10,
+        reduction="mean",
+        ignore_index=-100,
     ) -> None:
         super(VonMisesFisherLoss, self).__init__(reduction=reduction)
         self.device = device
-        bessel_consts = self.calculate_bessel_consts(
-            input_dim / 2 - 1, n_bessel_iters
-        )
+        bessel_consts = self.calculate_bessel_consts(input_dim / 2 - 1, n_bessel_iters)
         self.bessel_exps, self.bessel_coeffs = bessel_consts
         self.log_2_pi = Tensor([math.log(math.tau)]).to(self.device)
 
