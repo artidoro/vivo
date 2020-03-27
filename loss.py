@@ -31,7 +31,7 @@ class VonMisesFisherLoss(torch.nn.modules.loss._Loss):
     def forward(self, input: Tensor, target: Tensor) -> Tensor:
         # TODO Add both types of regularization
         # Only the target and not the input vector must have unit norm
-        unit_target = target / (target.norm(dim=-1).reshape(-1, 1) + 1e-20)
+        unit_target = target / target.norm(dim=-1).reshape(-1, 1)
         # Second line is batch-wise dot product
         x = -self.log_vmf_normalizing_const(
             input.norm(dim=-1), input.shape[-1]

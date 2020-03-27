@@ -59,7 +59,6 @@ def eval(model, loss_function, test_iter, args, ignore_index=-100) -> Any:
             loss = loss_function(scores[:-1,:,:].view(-1, scores.shape[2]), target)
         loss_tot += loss.item()
         if is_vmf_loss:
-            pred_embeds = scores[:-1,:,:].reshape(-1, scores.shape[-1])
             pred_embeds = scores[:-1,:,:]
             eval_batch_size = 128 // pred_embeds.shape[0]
             assert eval_batch_size > 0

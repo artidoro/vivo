@@ -5,8 +5,6 @@ import torch
 import torchtext
 from typing import Optional
 
-PAD_TOKEN = '<pad>'
-UNK_TOKEN = '<unk>'
 BOS_TOKEN = '<s>'
 EOS_TOKEN = '</s>'
 UNK_TOKEN = '<unk>'
@@ -82,6 +80,9 @@ def torchtext_iterators(
         trg_field.vocab.load_vectors(
             vectors=torchtext.vocab.FastText(language=trg_language)
         )
+        # TODO Remove words without embedding from the output vocabulary
+        trg_field.vocab.vectors[trg_field.vocab.stoi[BOS_TOKEN]] = 1/16
+        trg_field.vocab.vectors[(trg_field.vocab.vectors == 0).all(-1)] = trg_field.vocab.vectors.mean(0)
 
     logger.info('The size of src vocab is {} and trg vocab is {}.'.format(
         len(src_field.vocab.itos), len(trg_field.vocab.itos)))

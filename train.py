@@ -36,7 +36,6 @@ def train(model, optimizer, scheduler, loss_function, train_iter, val_iter, args
         if (epoch + 1) % args['eval_epochs'] == 0:
             logger.info('Starting evaluation.')
             evaluation_results = {}
-            #evaluation_results['train'] = eval(model, loss_function, train_iter, args)
             evaluation_results['valid'] = evaluation.eval(model, loss_function, val_iter, args, ignore_index=ignore_index)
             logger.info('\n' + pprint.pformat(evaluation_results))
 
