@@ -58,7 +58,8 @@ def eval(model, loss_function, test_iter, args) -> Any:
         if is_vmf_loss:
             pred_embeds = scores[:-1,:,:].reshape(-1, scores.shape[-1])
             pred_embeds = scores[:-1,:,:]
-            eval_batch_size = 16
+            eval_batch_size = 128 // pred_embeds.shape[0]
+            assert eval_batch_size > 0
             def batch_predict(i, x):
                 return utils.get_nearest_neighbor(
                     x[:, i:i+eval_batch_size, ...],
@@ -113,7 +114,12 @@ def idxs_to_sentences(predictions, vocab, src_sents = None, copy_lut = None, att
         mapped_predictions.append(' '.join(mapped_example))
     return mapped_predictions
 
-def greedy_decoding(model, test_iter, max_decoding_len) -> Tuple[List[str], List[str]]:
+def greedy_decoding(
+    model,
+    test_iter,
+    max_decoding_len,
+    unk_replace
+) -> Tuple[List[str], List[str]]:
     mode = model.training
     model.eval()
     ground_truth = []
@@ -122,8 +128,7 @@ def greedy_decoding(model, test_iter, max_decoding_len) -> Tuple[List[str], List
         for batch in tqdm(test_iter):
             ground_truth += batch.trg.transpose(1, 0).tolist()
             predictions = model.decode(batch.src, max_decoding_len)
-            predictions = predictions.transpose(0,1).tolist()
-            if args['unk_replace']:
+            if unk_replace:
                 attn_vectors = torch.stack(model.decoder.attention).permute(1,0,2)
                 prediction_strings += idxs_to_sentences(predictions, model.trg_vocab, src_sents = batch.src.permute(1,0), copy_lut = model.src_vocab, attn = attn_vectors)
             else:
@@ -135,10 +140,20 @@ def greedy_decoding(model, test_iter, max_decoding_len) -> Tuple[List[str], List
 
 
 def decode(
-    model, test_iter, max_decoding_len, write_to_file=False, checkpoint_path=None,
+    model,
+    test_iter,
+    max_decoding_len,
+    unk_replace,
+    write_to_file=False,
+    checkpoint_path=None,
 ) -> Dict:
     # TODO: Think about returning more than just bleu (ex: ppx, loss, ...).
-    predictions, ground_truth = greedy_decoding(model, test_iter, max_decoding_len)
+    predictions, ground_truth = greedy_decoding(
+        model,
+        test_iter,
+        max_decoding_len,
+        unk_replace
+    )
     bleu = {"bleu": sacrebleu.corpus_bleu(predictions, [ground_truth]).score}
     if write_to_file:
         assert checkpoint_path is not None

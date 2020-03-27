@@ -250,7 +250,7 @@ class AttentionDecoder(nn.Module):
                 decoded_idxs.append(model_sm.argmax(-1))
             else:
                 # TODO Dynamically set eval batch size
-                idxs = self._batched_nearest_neighbor(model_out, 16)
+                idxs = self._batched_nearest_neighbor(model_out, 128)
                 decoded_idxs.append(idxs)
             eos_generated += (decoded_idxs[-1] == eos_idx).cpu().numpy()
 

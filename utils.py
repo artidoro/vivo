@@ -100,7 +100,7 @@ def get_nearest_neighbor(
     norms = neighbor_norms.repeat(*(1,)*batch_dims, 1) * x.norm(dim=-1).unsqueeze(-1)
     dots = (
         neighbors.unsqueeze(0).repeat(*(1,)*batch_dims, 1, 1) @ x.unsqueeze(-1)
-    ).squeeze()
+    ).squeeze(-1)
     if return_indexes:
         return (dots / norms).argmax(-1)
     else:

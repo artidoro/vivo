@@ -152,6 +152,7 @@ if __name__ == '__main__':
             model,
             val_iter,
             args['max_decoding_len'],
+            args['unk_replace']
         )
         logger.info('\n' + pprint.pformat(evaluation_results), args)
 
