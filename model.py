@@ -217,6 +217,15 @@ class AttentionDecoder(nn.Module):
                 outputs.append(output)
         return torch.cat(outputs, 0)
 
+    def _batched_nearest_neighbor(self, x: Tensor, size: int) -> Tensor:
+        idxs = [
+            utils.get_nearest_neighbor(
+                x[:, i : i + size, ...], self.embedding.weight, return_indexes=True
+            )
+            for i in range(0, x.shape[1], size)
+        ]
+        return torch.cat(idxs, dim=1)
+
     def decode(
         self, h_encoder: Tensor, max_decoding_len: int, bos_idx: int, eos_idx: int,
     ) -> List[List[int]]:
@@ -229,23 +238,19 @@ class AttentionDecoder(nn.Module):
         decoded_idxs = [
             torch.LongTensor([bos_idx])
             .repeat(batch_size)
+            .unsqueeze(0)
             .to(self.embedding.weight.device)
         ]
         eos_generated = np.zeros((1, batch_size), dtype=np.bool)
         while len(decoded_idxs) < max_decoding_len and (eos_generated == 0).any():
-            decoded_embeds = self.embedding(decoded_idxs[-1]).unsqueeze(0)
-            model_out, hidden = self.step(
-                decoded_embeds, model_out, hidden, h_encoder,
-            )
+            decoded_embeds = self.embedding(decoded_idxs[-1])
+            model_out, hidden = self.step(decoded_embeds, model_out, hidden, h_encoder,)
             if self.xent:
                 model_sm = self.linear1(model_out)
                 decoded_idxs.append(model_sm.argmax(-1))
             else:
-                idxs = utils.get_nearest_neighbor(
-                    model_out,
-                    self.embedding.weight,
-                    return_indexes=True
-                )
+                # TODO Dynamically set eval batch size
+                idxs = self._batched_nearest_neighbor(model_out, 16)
                 decoded_idxs.append(idxs)
             eos_generated += (decoded_idxs[-1] == eos_idx).cpu().numpy()
 
