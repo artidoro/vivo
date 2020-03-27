@@ -27,6 +27,7 @@ def train(model, optimizer, scheduler, loss_function, train_iter, val_iter, args
                 target = batch.trg[1:,:].view(-1)
                 loss = loss_function(scores[:-1,:,:].view(-1, scores.shape[2]), target)
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), args['gradient_clipping'])
             optimizer.step()
             loss_tot += loss.item()
 

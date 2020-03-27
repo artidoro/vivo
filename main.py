@@ -16,27 +16,29 @@ def parse_args(args):
     parser = argparse.ArgumentParser(description='Arguments for the text classification model.')
     # Data related.
     parser.add_argument('--min_freq', default=1, type=int)
-    parser.add_argument('--max_len', default=256, type=int,
+    parser.add_argument('--max_len', default=100, type=int,
         help='Filters inputs to be at most the specified length.')
     parser.add_argument('--src_language', default='de',
         help='Choose "de", "fr", or "en".')
     parser.add_argument('--trg_language', default='en',
         help='Choose "de", "fr", or,"en".')
+    parser.add_argument('--src_vocab_size', default=50000, type=int)
+    parser.add_argument('--trg_vocab_size', default=50000, type=int)
 
     # Modeling.
     parser.add_argument('--device', default='cpu', help='Select cuda for the gpu.')
     parser.add_argument('--model_name', default='lstm_attn')
     parser.add_argument('--loss_function', default='xent')
     # Encoder.
-    parser.add_argument('--enc_embed_size', default=300, type=int)
-    parser.add_argument('--enc_hidden_size', default=100, type=int)
+    parser.add_argument('--enc_embed_size', default=512, type=int)
+    parser.add_argument('--enc_hidden_size', default=1024, type=int)
     parser.add_argument('--enc_num_layers', default=1, type=int)
     parser.add_argument('--enc_bidirectional', action='store_true')
     parser.add_argument('--src_fasttext_embeds', action='store_true')
     # Decoder.
     parser.add_argument('--dec_embed_size', default=300, type=int)
-    parser.add_argument('--dec_hidden_size', default=100, type=int)
-    parser.add_argument('--dec_num_layers', default=1, type=int)
+    parser.add_argument('--dec_hidden_size', default=1024, type=int)
+    parser.add_argument('--dec_num_layers', default=2, type=int)
     parser.add_argument('--input_feed', action='store_true')
     parser.add_argument('--tie_embed', action='store_true')
     parser.add_argument('--unk_replace', action='store_true')
@@ -44,17 +46,15 @@ def parse_args(args):
 
     # Training.
     parser.add_argument('--mode', default='train')
-    parser.add_argument('--batch_size', default=32, type=int)
+    parser.add_argument('--batch_size', default=64, type=int)
     parser.add_argument('--train_epochs', default=20, type=int)
     parser.add_argument('--eval_epochs', default=1, type=int)
-    parser.add_argument('--lr', default=1e-3, type=float)
+    parser.add_argument('--lr', default=2e-4, type=float)
     parser.add_argument('--weight_decay', default=0, type=float)
     parser.add_argument('--factor', default=0.1, type=float, help='Scheduler lr reduction factor.')
     parser.add_argument('--patience', default=100, type=int, help='Scheduler patience.')
-    parser.add_argument('--dropout', default=0.5, type=float)
-
-    # Decoding.
-    parser.add_argument('--max_decoding_len', default=256, type=int)
+    parser.add_argument('--dropout', default=0.3, type=float)
+    parser.add_argument('--gradient_clipping', default=5, type=float)
 
     # Save-load ops.
     parser.add_argument('--data_path', default='.data', help='Path to IWSLT16.')
@@ -85,7 +85,9 @@ if __name__ == '__main__':
         min_freq=args['min_freq'],
         max_len=args['max_len'],
         src_fasttext_embeds=args['src_fasttext_embeds'],
-        trg_fasttext_embeds=args['trg_fasttext_embeds']
+        trg_fasttext_embeds=args['trg_fasttext_embeds'],
+        src_vocab_size=args['src_vocab_size'],
+        trg_vocab_size=args['trg_vocab_size']
     )
 
     # Initialize model and optimizer. This requires loading checkpoint if specified in the arguments.
@@ -149,12 +151,11 @@ if __name__ == '__main__':
     elif args['mode'] == 'eval':
         logger.info('Starting evaluation.')
         evaluation_results = {}
-        # evaluation_results['train'] = utils.eval(model, train_iter, args)
         evaluation_results['valid'] = evaluation.decode(
             model,
             val_iter,
-            args['max_decoding_len'],
-            args['unk_replace']
+            args['max_len'],
+            args['unk_replace'],
         )
         logger.info('\n' + pprint.pformat(evaluation_results), args)
 

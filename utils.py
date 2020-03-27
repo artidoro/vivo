@@ -27,7 +27,9 @@ def torchtext_iterators(
     min_freq,
     max_len,
     src_fasttext_embeds,
-    trg_fasttext_embeds
+    trg_fasttext_embeds,
+    src_vocab_size,
+    trg_vocab_size
 ):
     '''
     Validation data TED TEST 2013-2014
@@ -36,7 +38,7 @@ def torchtext_iterators(
     Note: we are using tokenized lowercased text so split() is sufficient
         for preprocessing.
     '''
-    logger = logging.getLogger('logger')
+    logger = logging.getLogger('vivo_logger')
 
     if 'fr' in {src_language, trg_language}:
         data_path = FRENCH_DATA_PATH
@@ -64,8 +66,8 @@ def torchtext_iterators(
                               len(vars(x)['trg']) <= max_len
     )
 
-    src_field.build_vocab(train.src, min_freq=min_freq)
-    trg_field.build_vocab(train.trg, min_freq=min_freq)
+    src_field.build_vocab(train.src, min_freq=min_freq, max_size=src_vocab_size)
+    trg_field.build_vocab(train.trg, min_freq=min_freq, max_size=trg_vocab_size)
 
     train_iter, val_iter = torchtext.data.BucketIterator.splits((train, val),
         batch_size=batch_size, device=torch.device(device), repeat=False,
