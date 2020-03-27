@@ -1,14 +1,14 @@
 import logging
 import os
 
-def setup_logging(logger_name='logger', path='log'):
+def setup_logging(logger_name='vivo_logger', path='log'):
     """
     Sets up logging and formatter.
     This will log both to a file `log.log` in a directory specified by `path`
     and to the console. If the directory does not exist it will create the directory.
     The level of logging is set to DEBUG.
     Example usage:
-        logger = logging.getLogger('logger')
+        logger = logging.getLogger('vivo_logger')
         logger.info('Log message goes here')
     """
     # Initialize logging.
