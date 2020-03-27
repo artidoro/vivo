@@ -16,7 +16,7 @@ def parse_args(args):
     parser = argparse.ArgumentParser(description='Arguments for the text classification model.')
     # Data related.
     parser.add_argument('--min_freq', default=1, type=int)
-    parser.add_argument('--max_len', default=256, type=int,
+    parser.add_argument('--max_len', default=100, type=int,
         help='Filters inputs to be at most the specified length.')
     parser.add_argument('--src_language', default='de',
         help='Choose "de", "fr", or "en".')
@@ -32,7 +32,7 @@ def parse_args(args):
     # Encoder.
     parser.add_argument('--enc_embed_size', default=512, type=int)
     parser.add_argument('--enc_hidden_size', default=1024, type=int)
-    parser.add_argument('--enc_num_layers', default=2, type=int)
+    parser.add_argument('--enc_num_layers', default=1, type=int)
     parser.add_argument('--enc_bidirectional', action='store_true')
     parser.add_argument('--src_fasttext_embeds', action='store_true')
     # Decoder.
@@ -49,15 +49,12 @@ def parse_args(args):
     parser.add_argument('--batch_size', default=64, type=int)
     parser.add_argument('--train_epochs', default=20, type=int)
     parser.add_argument('--eval_epochs', default=1, type=int)
-    parser.add_argument('--lr', default=1e-3, type=float)
+    parser.add_argument('--lr', default=2e-4, type=float)
     parser.add_argument('--weight_decay', default=0, type=float)
     parser.add_argument('--factor', default=0.1, type=float, help='Scheduler lr reduction factor.')
     parser.add_argument('--patience', default=100, type=int, help='Scheduler patience.')
     parser.add_argument('--dropout', default=0.3, type=float)
     parser.add_argument('--gradient_clipping', default=5, type=float)
-
-    # Decoding.
-    parser.add_argument('--max_decoding_len', default=256, type=int)
 
     # Save-load ops.
     parser.add_argument('--data_path', default='.data', help='Path to IWSLT16.')
@@ -156,7 +153,7 @@ if __name__ == '__main__':
         evaluation_results['valid'] = evaluation.decode(
             model,
             val_iter,
-            args['max_decoding_len'],
+            args['max_len'],
         )
         logger.info('\n' + pprint.pformat(evaluation_results), args)
 
