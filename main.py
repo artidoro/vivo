@@ -110,8 +110,8 @@ if __name__ == '__main__':
         # Initialize model, optimizer, scheduler.
         model = model_dict[checkpoint['args']['model_name']](src_field.vocab, trg_field.vocab, **args)
         model.to(torch.device(args['device']))
-        optimizer = torch.optim.Adam(model.parameters(), lr=args['lr'],
-            weight_decay=args['weight_decay'])
+        optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, module.parameters()),
+            lr=args['lr'], weight_decay=args['weight_decay'])
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
             factor=args['factor'], patience=args['patience'], verbose=True)
         # Load the parameters.
