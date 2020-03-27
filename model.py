@@ -162,6 +162,9 @@ class AttentionDecoder(nn.Module):
         self.embedding = nn.Embedding(len(vocab), kwargs["dec_embed_size"])
         if kwargs['trg_fasttext_embeds']:
             self.embedding.weight = nn.Parameter(vocab.vectors)
+        if not self.xent:
+            # Freeze embeddings when using VMF.
+            self.embedding.weight.requires_grad = False
 
         self.lstm = nn.LSTM(
             lstm_input_size,
@@ -176,11 +179,11 @@ class AttentionDecoder(nn.Module):
         )
         if self.xent:
             self.linear1 = nn.Linear(kwargs["dec_embed_size"], len(vocab))
-        self.dropout = nn.Dropout(kwargs["dropout"])
+            # Weight tying.
+            if kwargs["tie_embed"]:
+                self.linear1.weight = self.embedding.weight
 
-        # Weight tying.
-        if self.xent and kwargs["tie_embed"]:
-            self.linear1.weight = self.embedding.weight
+        self.dropout = nn.Dropout(kwargs["dropout"])
         self.attention = []
 
     def step(
