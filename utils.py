@@ -5,8 +5,6 @@ import torch
 import torchtext
 from typing import Optional
 
-PAD_TOKEN = '<pad>'
-UNK_TOKEN = '<unk>'
 BOS_TOKEN = '<s>'
 EOS_TOKEN = '</s>'
 UNK_TOKEN = '<unk>'
@@ -29,7 +27,9 @@ def torchtext_iterators(
     min_freq,
     max_len,
     src_fasttext_embeds,
-    trg_fasttext_embeds
+    trg_fasttext_embeds,
+    src_vocab_size,
+    trg_vocab_size
 ):
     '''
     Validation data TED TEST 2013-2014
@@ -38,7 +38,7 @@ def torchtext_iterators(
     Note: we are using tokenized lowercased text so split() is sufficient
         for preprocessing.
     '''
-    logger = logging.getLogger('logger')
+    logger = logging.getLogger('vivo_logger')
 
     if 'fr' in {src_language, trg_language}:
         data_path = FRENCH_DATA_PATH
@@ -66,8 +66,8 @@ def torchtext_iterators(
                               len(vars(x)['trg']) <= max_len
     )
 
-    src_field.build_vocab(train.src, min_freq=min_freq)
-    trg_field.build_vocab(train.trg, min_freq=min_freq)
+    src_field.build_vocab(train.src, min_freq=min_freq, max_size=src_vocab_size)
+    trg_field.build_vocab(train.trg, min_freq=min_freq, max_size=trg_vocab_size)
 
     train_iter, val_iter = torchtext.data.BucketIterator.splits((train, val),
         batch_size=batch_size, device=torch.device(device), repeat=False,
@@ -82,6 +82,9 @@ def torchtext_iterators(
         trg_field.vocab.load_vectors(
             vectors=torchtext.vocab.FastText(language=trg_language)
         )
+        # TODO Remove words without embedding from the output vocabulary
+        trg_field.vocab.vectors[trg_field.vocab.stoi[BOS_TOKEN]] = 1/16
+        trg_field.vocab.vectors[(trg_field.vocab.vectors == 0).all(-1)] = trg_field.vocab.vectors.mean(0)
 
     logger.info('The size of src vocab is {} and trg vocab is {}.'.format(
         len(src_field.vocab.itos), len(trg_field.vocab.itos)))
@@ -96,8 +99,11 @@ def get_nearest_neighbor(
 ) -> torch.Tensor:
     if neighbor_norms is None:
         neighbor_norms = neighbors.norm(dim=-1)
-    norms = neighbor_norms.repeat(x.shape[0], 1) * x.norm(dim=-1).unsqueeze(-1)
-    dots = (neighbors.unsqueeze(0).repeat(x.shape[0], 1, 1) @ x.unsqueeze(-1)).squeeze()
+    batch_dims = len(x.shape) - 1
+    norms = neighbor_norms.repeat(*(1,)*batch_dims, 1) * x.norm(dim=-1).unsqueeze(-1)
+    dots = (
+        neighbors.unsqueeze(0).repeat(*(1,)*batch_dims, 1, 1) @ x.unsqueeze(-1)
+    ).squeeze(-1)
     if return_indexes:
         return (dots / norms).argmax(-1)
     else:

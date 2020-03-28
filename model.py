@@ -162,6 +162,9 @@ class AttentionDecoder(nn.Module):
         self.embedding = nn.Embedding(len(vocab), kwargs["dec_embed_size"])
         if kwargs['trg_fasttext_embeds']:
             self.embedding.weight = nn.Parameter(vocab.vectors)
+        if not self.xent:
+            # Freeze embeddings when using VMF.
+            self.embedding.weight.requires_grad = False
 
         self.lstm = nn.LSTM(
             lstm_input_size,
@@ -176,11 +179,11 @@ class AttentionDecoder(nn.Module):
         )
         if self.xent:
             self.linear1 = nn.Linear(kwargs["dec_embed_size"], len(vocab))
-        self.dropout = nn.Dropout(kwargs["dropout"])
+            # Weight tying.
+            if kwargs["tie_embed"]:
+                self.linear1.weight = self.embedding.weight
 
-        # Weight tying.
-        if self.xent and kwargs["tie_embed"]:
-            self.linear1.weight = self.embedding.weight
+        self.dropout = nn.Dropout(kwargs["dropout"])
         self.attention = []
 
     def step(
@@ -217,6 +220,15 @@ class AttentionDecoder(nn.Module):
                 outputs.append(output)
         return torch.cat(outputs, 0)
 
+    def _batched_nearest_neighbor(self, x: Tensor, size: int) -> Tensor:
+        idxs = [
+            utils.get_nearest_neighbor(
+                x[:, i : i + size, ...], self.embedding.weight, return_indexes=True
+            )
+            for i in range(0, x.shape[1], size)
+        ]
+        return torch.cat(idxs, dim=1)
+
     def decode(
         self, h_encoder: Tensor, max_decoding_len: int, bos_idx: int, eos_idx: int,
     ) -> List[List[int]]:
@@ -227,22 +239,22 @@ class AttentionDecoder(nn.Module):
         ).to(self.embedding.weight.device)
         hidden = None
         decoded_idxs = [
-            torch.LongTensor([[bos_idx]])
-            .repeat(1, batch_size)
+            torch.LongTensor([bos_idx])
+            .repeat(batch_size)
+            .unsqueeze(0)
             .to(self.embedding.weight.device)
         ]
         eos_generated = np.zeros((1, batch_size), dtype=np.bool)
         while len(decoded_idxs) < max_decoding_len and (eos_generated == 0).any():
             decoded_embeds = self.embedding(decoded_idxs[-1])
-            model_out, hidden = self.step(
-                decoded_embeds, model_out, hidden, h_encoder,
-            )
+            model_out, hidden = self.step(decoded_embeds, model_out, hidden, h_encoder,)
             if self.xent:
                 model_sm = self.linear1(model_out)
                 decoded_idxs.append(model_sm.argmax(-1))
             else:
-                # TODO Handle vMF here with nearest neighbor
-                raise NotImplementedError()
+                # TODO Dynamically set eval batch size
+                idxs = self._batched_nearest_neighbor(model_out, 128)
+                decoded_idxs.append(idxs)
             eos_generated += (decoded_idxs[-1] == eos_idx).cpu().numpy()
 
         return (
