@@ -28,7 +28,7 @@ def parse_args(args):
     # Modeling.
     parser.add_argument('--device', default='cpu', help='Select cuda for the gpu.')
     parser.add_argument('--model_name', default='lstm_attn')
-    parser.add_argument('--loss_function', default='xent')
+    parser.add_argument('--loss_function', default='xent', choices=['xent','vmf'])
     # Encoder.
     parser.add_argument('--enc_embed_size', default=512, type=int)
     parser.add_argument('--enc_hidden_size', default=1024, type=int)
@@ -88,7 +88,8 @@ if __name__ == '__main__':
         max_len=args['max_len'],
         fasttext_embeds_path=args['fasttext_embeds_path'],
         src_vocab_size=args['src_vocab_size'],
-        trg_vocab_size=args['trg_vocab_size']
+        trg_vocab_size=args['trg_vocab_size'],
+        is_vivo=args['loss_function']=='vmf'
     )
 
     # Initialize model and optimizer. This requires loading checkpoint if specified in the arguments.
