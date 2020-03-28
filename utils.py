@@ -4,6 +4,7 @@ import sys
 import torch
 import torchtext
 from typing import Optional
+import numpy as np
 
 BOS_TOKEN = '<s>'
 EOS_TOKEN = '</s>'
@@ -75,11 +76,18 @@ def torchtext_iterators(
     # Load pretrained embeddings.
     if fasttext_embeds_path is not None:
         trg_field.vocab.load_vectors(
-            vectors=torchtext.vocab.Vectors(name=fasttext_embeds_path)
+            vectors=torchtext.vocab.Vectors(name=fasttext_embeds_path),
         )
         # TODO Remove words without embedding from the output vocabulary
-        trg_field.vocab.vectors[trg_field.vocab.stoi[BOS_TOKEN]] = 1/16
-        trg_field.vocab.vectors[(trg_field.vocab.vectors == 0).all(-1)] = trg_field.vocab.vectors.mean(0)
+        trg_field.vocab.vectors[trg_field.vocab.stoi[UNK_TOKEN]] = -trg_field.vocab.vectors.mean(0)
+        zero_idxs = (trg_field.vocab.vectors == 0).all(-1)
+        zero_idxs[trg_field.vocab.stoi[BOS_TOKEN]] = False
+        zero_idxs[trg_field.vocab.stoi[PAD_TOKEN]] = False
+        vector_dim = trg_field.vocab.vectors.shape[-1]
+        for i in np.argwhere(zero_idxs).squeeze(0):
+            trg_field.vocab.vectors[i] = torch.Tensor(
+                np.random.uniform(-1.0, 1.0, vector_dim)
+            )
 
     logger.info('The size of src vocab is {} and trg vocab is {}.'.format(
         len(src_field.vocab.itos), len(trg_field.vocab.itos)))
