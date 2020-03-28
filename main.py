@@ -57,6 +57,7 @@ def parse_args(args):
     parser.add_argument('--patience', default=100, type=int, help='Scheduler patience.')
     parser.add_argument('--dropout', default=0.3, type=float)
     parser.add_argument('--gradient_clipping', default=5, type=float)
+    parser.add_argument('--top_k', default=5, type=int)
 
     # Save-load ops.
     parser.add_argument('--data_path', default='.data', help='Path to IWSLT16.')

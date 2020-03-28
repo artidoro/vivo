@@ -38,7 +38,8 @@ def eval(model, loss_function, test_iter, args, ignore_index=-100) -> Any:
     mode = model.training
     model.eval()
 
-    correct = 0
+    top_k_val = args['top_k']
+    correct = np.zeros(top_k_val)
     total = 0
     loss_tot = 0
     eval_results = {}
@@ -63,19 +64,24 @@ def eval(model, loss_function, test_iter, args, ignore_index=-100) -> Any:
                 return utils.get_nearest_neighbor(
                     x[:, i:i+eval_batch_size, ...],
                     model.decoder.embedding.weight,
-                    return_indexes=True,
+                    top_k=top_k_val,
                 )
             _preds = [
                 batch_predict(i, pred_embeds)
                 for i in range(0, pred_embeds.shape[1], eval_batch_size)]
             preds = torch.cat(_preds, dim=1)
-            correct += (preds.view(-1) == batch.trg[1:,:].view(-1)).sum().item()
         else:
-            preds = scores[:-1,:,:].argmax(2).squeeze()
-            correct += (preds.view(-1) == batch.trg[1:,:].view(-1)).sum().item()
+            preds = torch.topk(scores[:-1,:,:], top_k_val, sorted=True).indices
+        for k in range(top_k_val):
+            correct_tokens = preds[..., :k + 1] == batch.trg[1:, :, np.newaxis]
+            correct_tokens_in_top_k = correct_tokens.any(-1)
+            total_correct_tokens = correct_tokens_in_top_k.sum().item()
+            correct[k] = total_correct_tokens
+        # Keep only the top 1
+        preds = preds[..., 0]
         total += mask.sum().to(torch.float32)
         if args['write_to_file']:
-            predictions = list(preds.transpose(0,1).tolist())
+            predictions = preds.transpose(0,1).tolist()
             if args['unk_replace']: 
                 prediction_strings += idxs_to_sentences(predictions, model.trg_vocab, src_sents = batch.src.permute(1,0), copy_lut = model.src_vocab, attn = attn_vectors)
             else:
@@ -83,7 +89,8 @@ def eval(model, loss_function, test_iter, args, ignore_index=-100) -> Any:
 
     eval_results['loss'] = loss_tot/len(test_iter)
     eval_results['perplexity'] = math.exp(loss_tot/len(test_iter))
-    eval_results['accuracy'] = correct / total
+    for i in range(top_k_val):
+        eval_results[f'accuracy_top_{i + 1}'] = correct[i] / total
 
     # Write predictions to file.
     if args['write_to_file']:

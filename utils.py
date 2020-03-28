@@ -90,16 +90,18 @@ def get_nearest_neighbor(
     x: torch.Tensor,
     neighbors: torch.Tensor,
     neighbor_norms: Optional[torch.Tensor] = None,
-    return_indexes: bool = False,
+    top_k: int = 1,
 ) -> torch.Tensor:
     if neighbor_norms is None:
         neighbor_norms = neighbors.norm(dim=-1)
     batch_dims = len(x.shape) - 1
-    norms = neighbor_norms.repeat(*(1,)*batch_dims, 1) * x.norm(dim=-1).unsqueeze(-1)
+    norms = neighbor_norms.repeat(*(1,) * batch_dims, 1) * x.norm(dim=-1).unsqueeze(-1)
     dots = (
-        neighbors.unsqueeze(0).repeat(*(1,)*batch_dims, 1, 1) @ x.unsqueeze(-1)
+        neighbors.unsqueeze(0).repeat(*(1,) * batch_dims, 1, 1) @ x.unsqueeze(-1)
     ).squeeze(-1)
-    if return_indexes:
-        return (dots / norms).argmax(-1)
+    if top_k > 1:
+        topk = torch.topk(dots / norms, top_k, sorted=True)
+        return topk.indices
     else:
-        return neighbors[(dots / norms).argmax(-1)]
+        dists = dots / norms
+        return dists.argmax(-1)
