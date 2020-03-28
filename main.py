@@ -136,7 +136,7 @@ if __name__ == '__main__':
                 device=args["device"],
                 lambda_1=args["vmf_lambda_1"],
                 lambda_2=args["vmf_lambda_2"],
-                reduction="none",
+                reduction="mean",
             )
         else:
             raise ValueError(f"Unknown loss function: {args['loss_function']}")

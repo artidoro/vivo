@@ -50,13 +50,10 @@ def eval(model, loss_function, test_iter, args, ignore_index=-100) -> Any:
         attn_vectors = torch.stack(model.decoder.attention).permute(1,0,2)
         mask = (batch.trg[1:,:].view(-1) != ignore_index)
         if is_vmf_loss:
-            # Remove first elem of batch.trg which is start token.
             target = model.decoder.embedding(batch.trg[1:,:].view(-1))
-            raw_loss = loss_function(scores[:-1,:,:].view(-1, scores.shape[2]), target)
-            loss = (raw_loss * mask).sum() / mask.sum()
         else:
             target = batch.trg[1:,:].view(-1)
-            loss = loss_function(scores[:-1,:,:].view(-1, scores.shape[2]), target)
+        loss = loss_function(scores[:-1,:,:].view(-1, scores.shape[2]), target)
         loss_tot += loss.item()
         if is_vmf_loss:
             pred_embeds = scores[:-1,:,:]
