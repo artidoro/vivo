@@ -223,7 +223,7 @@ class AttentionDecoder(nn.Module):
     def _batched_nearest_neighbor(self, x: Tensor, size: int) -> Tensor:
         idxs = [
             utils.get_nearest_neighbor(
-                x[:, i : i + size, ...], self.embedding.weight, return_indexes=True
+                x[:, i : i + size, ...], self.embedding.weight,
             )
             for i in range(0, x.shape[1], size)
         ]

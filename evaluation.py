@@ -67,7 +67,6 @@ def eval(model, loss_function, test_iter, args, ignore_index=-100) -> Any:
                 return utils.get_nearest_neighbor(
                     x[:, i:i+eval_batch_size, ...],
                     model.decoder.embedding.weight,
-                    return_indexes=True,
                     top_k=top_k_val,
                 )
             _preds = [
