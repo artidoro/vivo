@@ -49,6 +49,8 @@ def parse_args(args):
     parser.add_argument('--batch_size', default=64, type=int)
     parser.add_argument('--train_epochs', default=20, type=int)
     parser.add_argument('--eval_epochs', default=1, type=int)
+    parser.add_argument('--vmf_lambda_1', default=2e-2, type=float)
+    parser.add_argument('--vmf_lambda_2', default=1e-1, type=float)
     parser.add_argument('--lr', default=2e-4, type=float)
     parser.add_argument('--weight_decay', default=0, type=float)
     parser.add_argument('--factor', default=0.1, type=float, help='Scheduler lr reduction factor.')
@@ -133,7 +135,9 @@ if __name__ == '__main__':
             loss_function = loss_dict["vmf"](
                 args["dec_embed_size"],
                 device=args["device"],
-                reduction="none"
+                lambda_1=args["vmf_lambda_1"],
+                lambda_2=args["vmf_lambda_2"],
+                reduction="none",
             )
         else:
             raise ValueError(f"Unknown loss function: {args['loss_function']}")

@@ -17,13 +17,17 @@ class VonMisesFisherLoss(torch.nn.modules.loss._Loss):
     def __init__(
         self,
         input_dim: int,
-        device: str = "cpu",
+        lambda_1: float = 0.0,
+        lambda_2: float = 1.0,
         n_bessel_iters=10,
         reduction="mean",
         use_finite_sums=False,
+        device: str = "cpu",
         ignore_index=-100,
     ) -> None:
         super(VonMisesFisherLoss, self).__init__(reduction=reduction)
+        self.lambda_1 = lambda_1
+        self.lambda_2 = lambda_2
         self.device = device
         self.use_finite_sums = use_finite_sums
         if self.use_finite_sums:
@@ -37,13 +41,15 @@ class VonMisesFisherLoss(torch.nn.modules.loss._Loss):
             self.get_normalizing_const = self._nc_lower_bound
 
     def forward(self, input: Tensor, target: Tensor) -> Tensor:
-        # TODO Add both types of regularization
         # Only the target and not the input vector must have unit norm
         unit_target = target / target.norm(dim=-1).reshape(-1, 1)
         # Second line is batch-wise dot product
-        x = -self.get_normalizing_const(input.norm(dim=-1), input.shape[-1]) - 1e-1 * (
-            unit_target * input
-        ).sum(-1)
+        input_norm = input.norm(dim=-1)
+        x = (
+            -self.get_normalizing_const(input_norm, input.shape[-1])
+            - self.lambda_2 * (unit_target * input).sum(-1)
+            + self.lambda_1 * input_norm
+        )
         if self.reduction == "none":
             return x
         elif self.reduction == "mean":
