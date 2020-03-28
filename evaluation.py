@@ -38,7 +38,8 @@ def eval(model, loss_function, test_iter, args, ignore_index=-100) -> Any:
     mode = model.training
     model.eval()
 
-    correct = 0
+    top_k_val = 5
+    correct = np.zeros(top_k_val)
     total = 0
     loss_tot = 0
     eval_results = {}
@@ -67,15 +68,20 @@ def eval(model, loss_function, test_iter, args, ignore_index=-100) -> Any:
                     x[:, i:i+eval_batch_size, ...],
                     model.decoder.embedding.weight,
                     return_indexes=True,
+                    top_k=top_k_val,
                 )
             _preds = [
                 batch_predict(i, pred_embeds)
                 for i in range(0, pred_embeds.shape[1], eval_batch_size)]
             preds = torch.cat(_preds, dim=1)
-            correct += (preds.view(-1) == batch.trg[1:,:].view(-1)).sum().item()
         else:
-            preds = scores[:-1,:,:].argmax(-1)
-            correct += (preds.view(-1) == batch.trg[1:,:].view(-1)).sum().item()
+            preds = torch.topk(scores[:-1,:,:], top_k_val, sorted=True).indices
+        correct += [
+            (preds[..., :k] == batch.trg[1:,:,np.newaxis]).any(-1).sum().item()
+            for k in range(1, top_k_val+1)
+        ]
+        # Keep only the top 1
+        preds = preds[..., 0]
         total += mask.sum().to(torch.float32)
         if args['write_to_file']:
             predictions = preds.transpose(0,1).tolist()
@@ -86,7 +92,8 @@ def eval(model, loss_function, test_iter, args, ignore_index=-100) -> Any:
 
     eval_results['loss'] = loss_tot/len(test_iter)
     eval_results['perplexity'] = math.exp(loss_tot/len(test_iter))
-    eval_results['accuracy'] = correct / total
+    for i in range(top_k_val):
+        eval_results[f'accuracy_top_{i + 1}'] = correct[i] / total
 
     # Write predictions to file.
     if args['write_to_file']:
