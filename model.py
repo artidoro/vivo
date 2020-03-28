@@ -117,8 +117,6 @@ class EncoderLSTM(nn.Module):
     def __init__(self, vocab, **kwargs):
         super(EncoderLSTM, self).__init__()
         self.embedding = nn.Embedding(len(vocab), kwargs['enc_embed_size'])
-        if kwargs['src_fasttext_embeds']:
-            self.embedding.weight = nn.Parameter(vocab.vectors)
         self.lstm = nn.LSTM(kwargs['enc_embed_size'], kwargs['enc_hidden_size'],
             kwargs['enc_num_layers'], dropout=kwargs['dropout'],
             bidirectional=kwargs['enc_bidirectional'])
@@ -160,7 +158,7 @@ class AttentionDecoder(nn.Module):
         self.input_feed = kwargs["input_feed"]
 
         self.embedding = nn.Embedding(len(vocab), kwargs["dec_embed_size"])
-        if kwargs['trg_fasttext_embeds']:
+        if kwargs['fasttext_embeds_path']:
             self.embedding.weight = nn.Parameter(vocab.vectors)
         if not self.xent:
             # Freeze embeddings when using VMF.

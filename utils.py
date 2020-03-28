@@ -26,10 +26,9 @@ def torchtext_iterators(
     batch_size,
     min_freq,
     max_len,
-    src_fasttext_embeds,
-    trg_fasttext_embeds,
+    fasttext_embeds_path,
     src_vocab_size,
-    trg_vocab_size
+    trg_vocab_size,
 ):
     '''
     Validation data TED TEST 2013-2014
@@ -74,13 +73,9 @@ def torchtext_iterators(
         sort_key=lambda x: len(x.src))
 
     # Load pretrained embeddings.
-    if src_fasttext_embeds:
-        src_field.vocab.load_vectors(
-            vectors=torchtext.vocab.FastText(language=src_language)
-        )
-    if trg_fasttext_embeds:
+    if fasttext_embeds_path is not None:
         trg_field.vocab.load_vectors(
-            vectors=torchtext.vocab.FastText(language=trg_language)
+            vectors=torchtext.vocab.Vectors(name=fasttext_embeds_path)
         )
         # TODO Remove words without embedding from the output vocabulary
         trg_field.vocab.vectors[trg_field.vocab.stoi[BOS_TOKEN]] = 1/16
