@@ -30,7 +30,12 @@ def train(model, optimizer, scheduler, loss_function, train_iter, val_iter, args
             torch.nn.utils.clip_grad_norm_(model.parameters(), args['gradient_clipping'])
             optimizer.step()
             loss_tot += loss.item()
-
+            evaluation.greedy_decoding(
+    model,
+    val_iter,
+    args['max_len'],
+    args['unk_replace']
+)
         loss_avg = loss_tot/len(train_iter)
         logger.info('Train Loss: {:.4f}'.format(loss_avg))
 

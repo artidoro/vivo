@@ -125,6 +125,7 @@ def greedy_decoding(
     model.eval()
     ground_truth = []
     prediction_strings = []
+    import pdb;pdb.set_trace()
     with torch.no_grad():
         for batch in tqdm(test_iter):
             ground_truth += batch.trg.transpose(1, 0).tolist()

@@ -112,6 +112,7 @@ if __name__ == '__main__':
             args = checkpoint['args']
 
         # Initialize model, optimizer, scheduler.
+        import pdb;pdb.set_trace()
         model = model_dict[checkpoint['args']['model_name']](src_field.vocab, trg_field.vocab, **args)
         model.to(torch.device(args['device']))
         optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),
