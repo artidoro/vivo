@@ -160,6 +160,7 @@ if __name__ == '__main__':
             val_iter,
             args['max_len'],
             args['unk_replace'],
+            args['checkpoint_path']
         )
         logger.info('\n' + pprint.pformat(evaluation_results), args)
 
