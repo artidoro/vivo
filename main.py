@@ -34,7 +34,6 @@ def parse_args(args):
     parser.add_argument('--enc_hidden_size', default=1024, type=int)
     parser.add_argument('--enc_num_layers', default=1, type=int)
     parser.add_argument('--enc_bidirectional', action='store_true')
-    parser.add_argument('--src_fasttext_embeds', action='store_true')
     # Decoder.
     parser.add_argument('--dec_embed_size', default=300, type=int)
     parser.add_argument('--dec_hidden_size', default=1024, type=int)
@@ -42,7 +41,8 @@ def parse_args(args):
     parser.add_argument('--input_feed', action='store_true')
     parser.add_argument('--tie_embed', action='store_true')
     parser.add_argument('--unk_replace', action='store_true')
-    parser.add_argument('--trg_fasttext_embeds', action='store_true')
+    parser.add_argument('--fasttext_embeds_path', default=None,
+        help='Path to file containing fasttext embeddings.')
 
     # Training.
     parser.add_argument('--mode', default='train')
@@ -86,8 +86,7 @@ if __name__ == '__main__':
         batch_size=args['batch_size'],
         min_freq=args['min_freq'],
         max_len=args['max_len'],
-        src_fasttext_embeds=args['src_fasttext_embeds'],
-        trg_fasttext_embeds=args['trg_fasttext_embeds'],
+        fasttext_embeds_path=args['fasttext_embeds_path'],
         src_vocab_size=args['src_vocab_size'],
         trg_vocab_size=args['trg_vocab_size']
     )
