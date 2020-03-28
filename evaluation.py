@@ -38,7 +38,7 @@ def eval(model, loss_function, test_iter, args, ignore_index=-100) -> Any:
     mode = model.training
     model.eval()
 
-    top_k_val = 5
+    top_k_val = args['top_k']
     correct = np.zeros(top_k_val)
     total = 0
     loss_tot = 0
