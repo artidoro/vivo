@@ -200,6 +200,10 @@ class AttentionDecoder(nn.Module):
         attended_output = self.global_attn(h_decoder, h_encoder)
         self.attention.append(self.global_attn.alphas) # num_target_words x b x num_src_words
         return self.dropout(attended_output), hidden
+    
+    def _reset(self):
+        """ Function to be called every time a new batch is loaded. It resets the attention stored in the model """
+        self.attention = []
 
     def forward(self, trg_batch: Tensor, h_encoder: Tensor) -> Tensor:
         trg_embeddings = self.embedding(trg_batch)
@@ -209,7 +213,7 @@ class AttentionDecoder(nn.Module):
         )
         hidden = None
         outputs = []
-        self.attention = []
+        self._reset()
         for i in range(trg_embeddings.shape[0]):
             trg_embed = trg_embeddings[i : i + 1, :, :]  # t=1 x b x d
             output, hidden = self.step(trg_embed, output, hidden, h_encoder)
@@ -232,6 +236,7 @@ class AttentionDecoder(nn.Module):
     def decode(
         self, h_encoder: Tensor, max_decoding_len: int, bos_idx: int, eos_idx: int,
     ) -> List[List[int]]:
+        self._reset()
         bos_idx_tensor = torch.LongTensor([bos_idx]).to(self.embedding.weight.device)
         batch_size = h_encoder.shape[1]
         model_out = output = torch.zeros(
@@ -247,7 +252,7 @@ class AttentionDecoder(nn.Module):
         eos_generated = np.zeros((1, batch_size), dtype=np.bool)
         while len(decoded_idxs) < max_decoding_len and (eos_generated == 0).any():
             decoded_embeds = self.embedding(decoded_idxs[-1])
-            model_out, hidden = self.step(decoded_embeds, model_out, hidden, h_encoder,)
+            model_out, hidden = self.step(decoded_embeds, model_out, hidden, h_encoder)
             if self.xent:
                 model_sm = self.linear1(model_out)
                 decoded_idxs.append(model_sm.argmax(-1))
