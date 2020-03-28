@@ -23,7 +23,6 @@ class VonMisesFisherLoss(torch.nn.modules.loss._Loss):
         reduction="mean",
         use_finite_sums=False,
         device: str = "cpu",
-        ignore_index=-100,
     ) -> None:
         super(VonMisesFisherLoss, self).__init__(reduction=reduction)
         self.lambda_1 = lambda_1
