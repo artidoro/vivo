@@ -20,28 +20,41 @@ class VonMisesFisherLoss(torch.nn.modules.loss._Loss):
         device: str = "cpu",
         n_bessel_iters=10,
         reduction="mean",
+        use_finite_sums=False,
         ignore_index=-100,
     ) -> None:
         super(VonMisesFisherLoss, self).__init__(reduction=reduction)
         self.device = device
-        bessel_consts = self.calculate_bessel_consts(input_dim / 2 - 1, n_bessel_iters)
-        self.bessel_exps, self.bessel_coeffs = bessel_consts
-        self.log_2_pi = Tensor([math.log(math.tau)]).to(self.device)
+        self.use_finite_sums = use_finite_sums
+        if self.use_finite_sums:
+            bessel_consts = self.calculate_bessel_consts(
+                input_dim / 2 - 1, n_bessel_iters
+            )
+            self.bessel_exps, self.bessel_coeffs = bessel_consts
+            self.log_2_pi = Tensor([math.log(math.tau)]).to(self.device)
+            self.get_normalizing_const = self._nc_finite_sum
+        else:
+            self.get_normalizing_const = self._nc_lower_bound
 
     def forward(self, input: Tensor, target: Tensor) -> Tensor:
         # TODO Add both types of regularization
         # Only the target and not the input vector must have unit norm
         unit_target = target / target.norm(dim=-1).reshape(-1, 1)
         # Second line is batch-wise dot product
-        x = -self.log_vmf_normalizing_const(
-            input.norm(dim=-1), input.shape[-1]
-        ) - 1e-1 * (unit_target * input).sum(-1)
+        x = -self.get_normalizing_const(input.norm(dim=-1), input.shape[-1]) - 1e-1 * (
+            unit_target * input
+        ).sum(-1)
         if self.reduction == "none":
             return x
         elif self.reduction == "mean":
             return x.mean()
         elif self.reduction == "sum":
             return x.sum()
+
+    def _nc_lower_bound(self, kappa: Tensor, m: Tensor) -> Tensor:
+        v = m / 2
+        sqrt_term = torch.sqrt((v + 1) ** 2 + kappa ** 2)
+        return (v - 1) * torch.log(v - 1 + sqrt_term) - sqrt_term
 
     def calculate_bessel_consts(self, v: float, n_iters: int) -> Tuple[Tensor, Tensor]:
         bessel_coeffs = np.ndarray(n_iters)
@@ -60,7 +73,7 @@ class VonMisesFisherLoss(torch.nn.modules.loss._Loss):
             torch.log(x / 2) * self.bessel_exps + self.bessel_coeffs, -1
         )
 
-    def log_vmf_normalizing_const(self, kappa: Tensor, m: Tensor) -> Tensor:
+    def _nc_finite_sum(self, kappa: Tensor, m: Tensor) -> Tensor:
         """Calculate the log normalizing constant C_m(kappa) for the vMF distribution"""
 
         return (
