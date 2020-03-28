@@ -82,11 +82,13 @@ def eval(model, loss_function, test_iter, args, ignore_index=-100) -> Any:
             correct[k] = total_correct_tokens
         # Keep only the top 1
         preds = preds[..., 0]
-        total += mask.sum().to(torch.float32)
+        total += mask.sum().item()
         if args['write_to_file']:
             predictions = preds.transpose(0,1).tolist()
             if args['unk_replace']:
-                prediction_strings += idxs_to_sentences(predictions, model.trg_vocab, src_sents = batch.src.permute(1,0), copy_lut = model.src_vocab, attn = attn_vectors)
+                prediction_strings += idxs_to_sentences(
+                    predictions, model.trg_vocab, src_sents=batch.src.permute(1,0),
+                    copy_lut=model.src_vocab, attn=attn_vectors)
             else:
                 prediction_strings += idxs_to_sentences(predictions, model.trg_vocab)
 
@@ -103,7 +105,13 @@ def eval(model, loss_function, test_iter, args, ignore_index=-100) -> Any:
     model.train(mode)
     return eval_results
 
-def idxs_to_sentences(predictions, vocab, src_sents = None, copy_lut = None, attn = None) -> List[str]:
+def idxs_to_sentences(
+    predictions,
+    vocab,
+    src_sents = None,
+    copy_lut = None,
+    attn = None
+) -> List[str]:
     mapped_predictions = []
     for pred_idx, prediction_example in enumerate(predictions):
         mapped_example = []
@@ -113,7 +121,8 @@ def idxs_to_sentences(predictions, vocab, src_sents = None, copy_lut = None, att
                 break
             elif word in (BOS_TOKEN, PAD_TOKEN):
                 continue
-            elif word is UNK_TOKEN and type(src_sents) != type(None) and type(attn) != type(None) and type(copy_lut) != type(None):
+            elif word is UNK_TOKEN and type(src_sents) != type(None) and\
+                type(attn) != type(None) and type(copy_lut) != type(None):
                 _, max_attn_idx = attn[pred_idx,index_idx].max(-1)
                 word = copy_lut.itos[src_sents[pred_idx, max_attn_idx]]
             mapped_example.append(word)
