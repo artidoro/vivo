@@ -75,10 +75,11 @@ def eval(model, loss_function, test_iter, args, ignore_index=-100) -> Any:
             preds = torch.cat(_preds, dim=1)
         else:
             preds = torch.topk(scores[:-1,:,:], top_k_val, sorted=True).indices
-        correct += [
-            (preds[..., :k] == batch.trg[1:,:,np.newaxis]).any(-1).sum().item()
-            for k in range(1, top_k_val+1)
-        ]
+        for k in range(top_k_val):
+            correct_tokens = preds[..., :k + 1] == batch.trg[1:, :, np.newaxis]
+            correct_tokens_in_top_k = correct_tokens.any(-1)
+            total_correct_tokens = correct_tokens_in_top_k.sum().item()
+            correct[k] = total_correct_tokens
         # Keep only the top 1
         preds = preds[..., 0]
         total += mask.sum().to(torch.float32)
