@@ -104,10 +104,14 @@ def get_nearest_neighbor(
         neighbor_norms = neighbors.norm(dim=-1)
     batch_dims = len(x.shape) - 1
     norms = neighbor_norms.repeat(*(1,)*batch_dims, 1) * x.norm(dim=-1).unsqueeze(-1)
+    zero_mask = norms == 0.0
     dots = (
         neighbors.unsqueeze(0).repeat(*(1,)*batch_dims, 1, 1) @ x.unsqueeze(-1)
     ).squeeze(-1)
+    distances = (dots / norms)
+    # Replace nan's
+    distances[zero_mask] = 0.0
     if return_indexes:
-        return (dots / norms).argmax(-1)
+        return distances.argmax(-1)
     else:
-        return neighbors[(dots / norms).argmax(-1)]
+        return neighbors[distances.argmax(-1)]
