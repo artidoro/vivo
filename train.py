@@ -20,12 +20,9 @@ def train(model, optimizer, scheduler, loss_function, train_iter, val_iter, args
             scores = model(batch.src, batch.trg)
             if isinstance(loss_function, VonMisesFisherLoss):
                 target = model.decoder.embedding(batch.trg[1:,:].view(-1))
-                raw_loss = loss_function(scores[:-1,:,:].view(-1, scores.shape[2]), target)
-                mask = (batch.trg[1:,:].view(-1) != ignore_index)
-                loss = (raw_loss * mask).sum() / mask.sum()
             else:
                 target = batch.trg[1:,:].view(-1)
-                loss = loss_function(scores[:-1,:,:].view(-1, scores.shape[2]), target)
+            loss = loss_function(scores[:-1,:,:].view(-1, scores.shape[2]), target)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), args['gradient_clipping'])
             optimizer.step()
