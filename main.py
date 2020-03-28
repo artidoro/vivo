@@ -105,7 +105,7 @@ if __name__ == '__main__':
         logger.info('Loading checkpoint {}'.format(args['load_checkpoint_path']))
         checkpoint_path = os.path.join('log', args['load_checkpoint_path'])
         assert os.path.exists(checkpoint_path), 'Checkpoint path {} does not exists.'.format(checkpoint_path)
-        checkpoint = torch.load(checkpoint_path)
+        checkpoint = torch.load(checkpoint_path, map_location=torch.device(args['device']))
 
         # Use checkpoint arguments if required.
         if args['use_checkpoint_args']:
@@ -113,13 +113,13 @@ if __name__ == '__main__':
 
         # Initialize model, optimizer, scheduler.
         model = model_dict[checkpoint['args']['model_name']](src_field.vocab, trg_field.vocab, **args)
-        model.to(torch.device(args['device']))
-        optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),
+        optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters))
             lr=args['lr'], weight_decay=args['weight_decay'])
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
             factor=args['factor'], patience=args['patience'], verbose=True)
         # Load the parameters.
         model.load_state_dict(checkpoint['model_state_dict'])
+        model.to(torch.device(args['device']))
         if args['load_optimizer']:
             optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         if args['load_scheduler']:
