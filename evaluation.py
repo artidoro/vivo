@@ -86,9 +86,8 @@ def eval(model, loss_function, test_iter, args, ignore_index=-100) -> Any:
         if args['write_to_file']:
             predictions = preds.transpose(0,1).tolist()
             if args['unk_replace']:
-                prediction_strings += idxs_to_sentences(
-                    predictions, model.trg_vocab, src_sents=batch.src.permute(1,0),
-                    copy_lut=model.src_vocab, attn=attn_vectors)
+                prediction_strings += idxs_to_sentences(predictions, model.trg_vocab,
+                    src_sents=batch.src.permute(1,0), copy_lut=model.src_vocab, attn=attn_vectors)
             else:
                 prediction_strings += idxs_to_sentences(predictions, model.trg_vocab)
 
