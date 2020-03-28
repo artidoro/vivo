@@ -34,7 +34,7 @@ def write_predictions(
     file_path = dir_path / f"prediction_{dt_string}.txt"
     with file_path.open("w") as out_file:
         for i in range(len(predictions)):
-            out_file.write(predictions[i] + " ||| " + ground_truth[i] + "\n")
+            out_file.write(ground_truth[i] + " ||| " + predictions[i] + "\n")
 
 
 def eval(model, loss_function, test_iter, args, ignore_index=-100) -> Any:

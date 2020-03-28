@@ -79,7 +79,7 @@ if __name__ == '__main__':
 
     # Load the data.
     logger.info('Loading data and building iterators.')
-    train_iter, val_iter, test, src_field, trg_field = utils.torchtext_iterators(
+    train_iter, val_iter, test_iter, src_field, trg_field = utils.torchtext_iterators(
         root_data_path=args['data_path'],
         src_language=args['src_language'],
         trg_language=args['trg_language'],
@@ -152,20 +152,20 @@ if __name__ == '__main__':
             ignore_index=trg_field.vocab.stoi[trg_field.pad_token],
         )
 
-    elif args['mode'] == 'eval':
+    else:
+        if args['mode'] == 'eval':
+            data_iter = val_iter
+        elif args['mode'] == 'test':
+            data_iter = test_iter
+        else:
+            raise NotImplementedError
         logger.info('Starting evaluation.')
         evaluation_results = {}
-        evaluation_results['valid'] = evaluation.decode(
+        evaluation_results[args['mode']] = evaluation.decode(
             model,
-            val_iter,
+            data_iter,
             args['max_len'],
             args['unk_replace'],
             args['checkpoint_path']
         )
         logger.info('\n' + pprint.pformat(evaluation_results), args)
-
-    elif args['mode'] == 'test':
-        raise NotImplementedError()
-        logger.info('Starting testing.')
-        utils.predict_write_to_file(model, test, args)
-        logger.info('Done writing predictions to file.')

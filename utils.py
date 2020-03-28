@@ -68,7 +68,7 @@ def torchtext_iterators(
     src_field.build_vocab(train.src, min_freq=min_freq, max_size=src_vocab_size)
     trg_field.build_vocab(train.trg, min_freq=min_freq, max_size=trg_vocab_size)
 
-    train_iter, val_iter = torchtext.data.BucketIterator.splits((train, val),
+    train_iter, val_iter, test_iter = torchtext.data.BucketIterator.splits((train, val, test),
         batch_size=batch_size, device=torch.device(device), repeat=False,
         sort_key=lambda x: len(x.src))
 
@@ -84,7 +84,7 @@ def torchtext_iterators(
     logger.info('The size of src vocab is {} and trg vocab is {}.'.format(
         len(src_field.vocab.itos), len(trg_field.vocab.itos)))
 
-    return train_iter, val_iter, test, src_field, trg_field
+    return train_iter, val_iter, test_iter, src_field, trg_field
 
 def get_nearest_neighbor(
     x: torch.Tensor,
