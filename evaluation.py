@@ -74,11 +74,11 @@ def eval(model, loss_function, test_iter, args, ignore_index=-100) -> Any:
             preds = torch.cat(_preds, dim=1)
             correct += (preds.view(-1) == batch.trg[1:,:].view(-1)).sum().item()
         else:
-            preds = scores[:-1,:,:].argmax(2).squeeze()
+            preds = scores[:-1,:,:].argmax(-1)
             correct += (preds.view(-1) == batch.trg[1:,:].view(-1)).sum().item()
         total += mask.sum().to(torch.float32)
         if args['write_to_file']:
-            predictions = list(preds.transpose(0,1).tolist())
+            predictions = preds.transpose(0,1).tolist()
             if args['unk_replace']: 
                 prediction_strings += idxs_to_sentences(predictions, model.trg_vocab, src_sents = batch.src.permute(1,0), copy_lut = model.src_vocab, attn = attn_vectors)
             else:
