@@ -64,9 +64,16 @@ def torchtext_iterators(args, src_vocab=None, trg_vocab=None):
     else:
         trg_field.build_vocab(train.trg, min_freq=args['min_freq'], max_size=args['trg_vocab_size'])
 
-    train_iter, val_iter, test_iter = torchtext.data.BucketIterator.splits((train, val, test),
-        batch_size=args['batch_size'], device=torch.device(args['device']), repeat=False,
+    # Create iterators and batch (different batch size for train and eval/test).
+    train_iter = torchtext.data.BucketIterator(train,
+        batch_size=args['train_batch_size'], device=torch.device(args['device']), repeat=False,
         sort_key=lambda x: len(x.src))
+    val_iter = torchtext.data.BucketIterator(val,
+        batch_size=args['eval_batch_size'], device=torch.device(args['device']), repeat=False,
+        sort_key=lambda x: len(x.src), train=False)
+    test_iter = torchtext.data.BucketIterator(test,
+        batch_size=args['eval_batch_size'], device=torch.device(args['device']), repeat=False,
+        sort_key=lambda x: len(x.src), train=False)
 
     # Load pretrained embeddings.
     if args['fasttext_embeds_path'] is not None:
