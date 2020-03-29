@@ -46,7 +46,8 @@ def parse_args(args):
 
     # Training.
     parser.add_argument('--mode', default='train', choices=['eval','train','test'])
-    parser.add_argument('--batch_size', default=64, type=int)
+    parser.add_argument('--train_batch_size', default=64, type=int)
+    parser.add_argument('--eval_batch_size', default=64, type=int)
     parser.add_argument('--train_epochs', default=20, type=int)
     parser.add_argument('--eval_epochs', default=None, type=int)
     parser.add_argument('--eval_examples', default=100000, type=int)
@@ -65,6 +66,7 @@ def parse_args(args):
     parser.add_argument('--checkpoint_path', required=True)
     parser.add_argument('--load_checkpoint_path', default=None)
     parser.add_argument('--use_checkpoint_args', action='store_true')
+    parser.add_argument('-o', '--overwrite_args', action='append', help='Arguments to overwrite.')
     parser.add_argument('--load_optimizer', action='store_true')
     parser.add_argument('--load_scheduler', action='store_true')
     parser.add_argument('--write_to_file', action='store_true', help='Write predictions to file.')
@@ -88,9 +90,8 @@ if __name__ == '__main__':
         # Use checkpoint arguments if required.
         if args['use_checkpoint_args']:
             checkpoint_args = checkpoint['args']
-            checkpoint_args['mode'] = args['mode']
-            checkpoint_args['device'] = args['device']
-            checkpoint_args['load_checkpoint_path'] = args['load_checkpoint_path']
+            for arg in args['overwrite_args']:
+                checkpoint_args[arg] = args[arg]
             if args['checkpoint_path'] != checkpoint_args['checkpoint_path']:
                 # Adding logger.
                 checkpoint_path = os.path.join('log', checkpoint_args['checkpoint_path'])
@@ -110,7 +111,7 @@ if __name__ == '__main__':
         src_vocab = checkpoint['src_vocab']
         trg_vocab = checkpoint['trg_vocab']
     train_iter, val_iter, test_iter, src_field, trg_field = utils.torchtext_iterators(
-        args, src_vocab, trg_vocab)
+        args, src_vocab=src_vocab, trg_vocab=trg_vocab)
 
     # Initialize model and optimizer. This requires loading checkpoint if specified in the arguments.
     model = model_dict[args['model_name']](src_field.vocab, trg_field.vocab, **args)
@@ -172,4 +173,4 @@ if __name__ == '__main__':
             args['write_to_file'],
             args['checkpoint_path']
         )
-        logger.info('\n' + pprint.pformat(evaluation_results), args)
+        logger.info('\n' + pprint.pformat(evaluation_results))
