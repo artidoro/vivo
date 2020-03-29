@@ -1,11 +1,10 @@
-python main.py --checkpoint_path sm_deen_small\
-               --device cuda:3\
+python main.py --checkpoint_path vmf\
+               --loss_function vmf\
+               --device cuda\
                --src_language de\
                --trg_language en\
                --enc_bidirectional\
                --input_feed\
                --tie_embed\
                --unk_replace\
-               --trg_fasttext_embeds\
-               --max_len 20\
-               --min_freq 2
+               --fasttext_embeds_path ~/data/corpus.fasttext.txt
