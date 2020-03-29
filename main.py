@@ -90,7 +90,7 @@ if __name__ == '__main__':
         # Use checkpoint arguments if required.
         if args['use_checkpoint_args']:
             checkpoint_args = checkpoint['args']
-            for arg in args['overwrite_args']:
+            for arg in args['overwrite_args'] + ['load_checkpoint_path']:
                 checkpoint_args[arg] = args[arg]
             if args['checkpoint_path'] != checkpoint_args['checkpoint_path']:
                 # Adding logger.
@@ -156,21 +156,15 @@ if __name__ == '__main__':
             ignore_index=trg_field.vocab.stoi[trg_field.pad_token],
         )
 
-    else:
-        if args['mode'] == 'eval':
-            data_iter = val_iter
-        elif args['mode'] == 'test':
-            data_iter = test_iter
-        else:
-            raise ValueError(f"Unknown mode: {args['mode']}")
-        logger.info('Starting evaluation.')
-        evaluation_results = {}
-        evaluation_results[args['mode']] = evaluation.decode(
-            model,
-            data_iter,
-            args['max_len'],
-            args['unk_replace'],
-            args['write_to_file'],
-            args['checkpoint_path']
-        )
-        logger.info('\n' + pprint.pformat(evaluation_results))
+    logger.info('Starting evaluation.')
+    data_iter = val_iter if args['mode'] == 'test' else test_iter
+    evaluation_results = {}
+    evaluation_results[args['mode']] = evaluation.decode(
+        model,
+        data_iter,
+        args['max_len'],
+        args['unk_replace'],
+        args['write_to_file'],
+        args['checkpoint_path']
+    )
+    logger.info('\n' + pprint.pformat(evaluation_results))
