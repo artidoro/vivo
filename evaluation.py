@@ -114,7 +114,9 @@ def idxs_to_sentences(
     mapped_predictions = []
     for pred_idx, prediction_example in enumerate(predictions):
         mapped_example = []
-        for index_idx, index in enumerate(prediction_example):
+        # Iterates through sentence to find first EOS or decodes the entire sentence
+        sent_len = next((pos for pos,word_idx in enumerate(prediction_example) if word_idx == vocab.stoi[EOS_TOKEN]),len(prediction_example) -1) 
+        for index_idx, index in enumerate(prediction_example[:sent_len]):
             word = vocab.itos[index]
             if word is EOS_TOKEN:
                 break

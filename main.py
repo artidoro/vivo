@@ -45,7 +45,7 @@ def parse_args(args):
         help='Path to file containing fasttext embeddings.')
 
     # Training.
-    parser.add_argument('--mode', default='train')
+    parser.add_argument('--mode', default='train', choices=['eval','train','test'])
     parser.add_argument('--batch_size', default=64, type=int)
     parser.add_argument('--train_epochs', default=20, type=int)
     parser.add_argument('--eval_epochs', default=None, type=int)
@@ -110,7 +110,11 @@ if __name__ == '__main__':
 
         # Use checkpoint arguments if required.
         if args['use_checkpoint_args']:
+            mode = args['mode']
+            device = args['device']
             args = checkpoint['args']
+            args['mode'] = mode
+            args['device'] = device
 
         # Initialize model, optimizer, scheduler.
         model = model_dict[checkpoint['args']['model_name']](src_field.vocab, trg_field.vocab, **args)
