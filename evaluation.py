@@ -120,8 +120,12 @@ def idxs_to_sentences(
                 break
             elif word in (BOS_TOKEN, PAD_TOKEN):
                 continue
-            elif word is UNK_TOKEN and type(src_sents) != type(None) and\
-                type(attn) != type(None) and type(copy_lut) != type(None):
+            elif (
+                word is UNK_TOKEN
+                and type(src_sents) != type(None)
+                and type(attn) != type(None)
+                and type(copy_lut) != type(None)
+            ):
                 _, max_attn_idx = attn[pred_idx,index_idx].max(-1)
                 word = copy_lut.itos[src_sents[pred_idx, max_attn_idx]]
             mapped_example.append(word)
