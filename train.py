@@ -39,8 +39,8 @@ def train(model,
             loss_tot += loss.item()
             num_examples_seen += batch.batch_size
 
-            if args['eval_epochs'] is None and prev_modulo >= (num_examples_seen + 1) % args['eval_examples']:
-                prev_modulo = (num_examples_seen + 1) % args['eval_examples']
+            if args['eval_epochs'] is None and prev_modulo >= num_examples_seen % args['eval_examples']:
+                prev_modulo = num_examples_seen % args['eval_examples']
                 checkpoint_eval(model, loss_function, scheduler, optimizer, val_iter, args,
                 ignore_index, loss_tot, epoch, num_examples_seen)
 
