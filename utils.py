@@ -30,6 +30,7 @@ def torchtext_iterators(
     fasttext_embeds_path,
     src_vocab_size,
     trg_vocab_size,
+    is_vivo
 ):
     '''
     Validation data TED TEST 2013-2014
@@ -75,19 +76,32 @@ def torchtext_iterators(
 
     # Load pretrained embeddings.
     if fasttext_embeds_path is not None:
+        embedding_vectors = torchtext.vocab.Vectors(name=fasttext_embeds_path)
         trg_field.vocab.load_vectors(
-            vectors=torchtext.vocab.Vectors(name=fasttext_embeds_path),
+            vectors=embedding_vectors
         )
         # TODO Remove words without embedding from the output vocabulary
-        trg_field.vocab.vectors[trg_field.vocab.stoi[UNK_TOKEN]] = -trg_field.vocab.vectors.mean(0)
-        zero_idxs = (trg_field.vocab.vectors == 0).all(-1)
-        zero_idxs[trg_field.vocab.stoi[BOS_TOKEN]] = False
-        zero_idxs[trg_field.vocab.stoi[PAD_TOKEN]] = False
-        vector_dim = trg_field.vocab.vectors.shape[-1]
-        for i in np.argwhere(zero_idxs).squeeze(0):
-            trg_field.vocab.vectors[i] = torch.Tensor(
+        trg_field.vocab.vectors[trg_field.vocab.stoi[BOS_TOKEN]] = 1/16
+        trg_field.vocab.vectors[(trg_field.vocab.vectors == 0).all(-1)] = trg_field.vocab.vectors.mean(0)
+        if is_vivo:
+            full_vocab = torchtext.data.Field()
+            full_vocab.build_vocab(train.trg, min_freq=min_freq)
+            excluded_words = [word for word in full_vocab.vocab.stoi if word not in trg_field.vocab.stoi]
+            if excluded_words:
+                excluded_vectors = torch.stack([embedding_vectors[excluded_word] for excluded_word in excluded_words if excluded_word in embedding_vectors.stoi])
+                unk_vector = -torch.mean(excluded_vectors,dim=0)
+            else:
+                unk_vector = torch.randn(trg_field.vocab.vectors[trg_field.vocab.stoi[UNK_TOKEN]].shape)
+            trg_field.vocab.vectors[trg_field.vocab.stoi[UNK_TOKEN]] = unk_vector
+            
+            zero_idxs = (trg_field.vocab.vectors == 0).all(-1)
+            zero_idxs[trg_field.vocab.stoi[BOS_TOKEN]] = False
+            zero_idxs[trg_field.vocab.stoi[PAD_TOKEN]] = False
+            vector_dim = trg_field.vocab.vectors.shape[-1]
+            for i in np.argwhere(zero_idxs).squeeze(0):
+                trg_field.vocab.vectors[i] = torch.Tensor(
                 np.random.uniform(-1.0, 1.0, vector_dim)
-            )
+                )
 
     logger.info('The size of src vocab is {} and trg vocab is {}.'.format(
         len(src_field.vocab.itos), len(trg_field.vocab.itos)))
