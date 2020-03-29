@@ -157,7 +157,7 @@ if __name__ == '__main__':
         )
 
     logger.info('Starting evaluation.')
-    data_iter = val_iter if args['mode'] == 'test' else test_iter
+    data_iter = test_iter if args['mode'] == 'test' else val_iter
     evaluation_results = {}
     evaluation_results[args['mode']] = evaluation.decode(
         model,
