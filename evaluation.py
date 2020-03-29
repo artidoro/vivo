@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import Any, List, Tuple, Dict
 import numpy as np
 import logging
 import math
@@ -18,7 +17,11 @@ from loss import VonMisesFisherLoss
 PathLike = Union[Path, str]
 
 
-def write_predictions(predictions: List[str], checkpoint_path: PathLike) -> None:
+def write_predictions(
+    predictions: List[str],
+    ground_truth: List[str],
+    checkpoint_path: PathLike
+) -> None:
     log_path = Path("log")
     dir_path = log_path / checkpoint_path
     # Datetime object containing current date and time.
@@ -30,8 +33,8 @@ def write_predictions(predictions: List[str], checkpoint_path: PathLike) -> None
         dir_path.mkdir()
     file_path = dir_path / f"prediction_{dt_string}.txt"
     with file_path.open("w") as out_file:
-        for sentence in predictions:
-            out_file.write(sentence + "\n")
+        for i in range(len(predictions)):
+            out_file.write(ground_truth[i] + " ||| " + predictions[i] + "\n")
 
 
 def eval(model, loss_function, test_iter, args, ignore_index=-100) -> Any:
@@ -79,11 +82,12 @@ def eval(model, loss_function, test_iter, args, ignore_index=-100) -> Any:
             correct[k] = total_correct_tokens
         # Keep only the top 1
         preds = preds[..., 0]
-        total += mask.sum().to(torch.float32)
+        total += mask.sum().item()
         if args['write_to_file']:
             predictions = preds.transpose(0,1).tolist()
-            if args['unk_replace']: 
-                prediction_strings += idxs_to_sentences(predictions, model.trg_vocab, src_sents = batch.src.permute(1,0), copy_lut = model.src_vocab, attn = attn_vectors)
+            if args['unk_replace']:
+                prediction_strings += idxs_to_sentences(predictions, model.trg_vocab,
+                    src_sents=batch.src.permute(1,0), copy_lut=model.src_vocab, attn=attn_vectors)
             else:
                 prediction_strings += idxs_to_sentences(predictions, model.trg_vocab)
 
@@ -100,7 +104,13 @@ def eval(model, loss_function, test_iter, args, ignore_index=-100) -> Any:
     model.train(mode)
     return eval_results
 
-def idxs_to_sentences(predictions, vocab, src_sents = None, copy_lut = None, attn = None) -> List[str]:
+def idxs_to_sentences(
+    predictions,
+    vocab,
+    src_sents = None,
+    copy_lut = None,
+    attn = None
+) -> List[str]:
     mapped_predictions = []
     for pred_idx, prediction_example in enumerate(predictions):
         mapped_example = []
@@ -110,10 +120,14 @@ def idxs_to_sentences(predictions, vocab, src_sents = None, copy_lut = None, att
                 break
             elif word in (BOS_TOKEN, PAD_TOKEN):
                 continue
-            elif word is UNK_TOKEN and type(src_sents) != type(None) and type(attn) != type(None) and type(copy_lut) != type(None):
+            elif (
+                word is UNK_TOKEN
+                and type(src_sents) != type(None)
+                and type(attn) != type(None)
+                and type(copy_lut) != type(None)
+            ):
                 _, max_attn_idx = attn[pred_idx,index_idx].max(-1)
                 word = copy_lut.itos[src_sents[pred_idx, max_attn_idx]]
-            
             mapped_example.append(word)
 
         mapped_predictions.append(' '.join(mapped_example))
@@ -135,7 +149,13 @@ def greedy_decoding(
             predictions = model.decode(batch.src, max_decoding_len)
             if unk_replace:
                 attn_vectors = torch.stack(model.decoder.attention).permute(1,0,2)
-                prediction_strings += idxs_to_sentences(predictions, model.trg_vocab, src_sents = batch.src.permute(1,0), copy_lut = model.src_vocab, attn = attn_vectors)
+                prediction_strings += idxs_to_sentences(
+                    predictions,
+                    model.trg_vocab,
+                    src_sents=batch.src.permute(1,0),
+                    copy_lut=model.src_vocab,
+                    attn=attn_vectors
+                )
             else:
                 prediction_strings += idxs_to_sentences(predictions, model.trg_vocab)
     model.train(mode)
@@ -149,8 +169,8 @@ def decode(
     test_iter,
     max_decoding_len,
     unk_replace,
-    write_to_file=True,
-    checkpoint_path="checkpoint",
+    write_to_file,
+    checkpoint_path,
 ) -> Dict:
     # TODO: Think about returning more than just bleu (ex: ppx, loss, ...).
     predictions, ground_truth = greedy_decoding(
@@ -162,5 +182,5 @@ def decode(
     bleu = {"bleu": sacrebleu.corpus_bleu(predictions, [ground_truth]).score}
     if write_to_file:
         assert checkpoint_path is not None
-        write_predictions(predictions, checkpoint_path)
+        write_predictions(predictions, ground_truth, checkpoint_path)
     return bleu
