@@ -102,7 +102,10 @@ if __name__ == '__main__':
     # Load the data.
     logger.info('Loading data and building iterators.')
     src_vocab, trg_vocab = None, None
-    if args['load_checkpoint_path'] is not None:
+    if (args['load_checkpoint_path'] is not None
+        and 'src_vocab' in checkpoint
+        and 'trg_vocab' in checkpoint
+    ):
         # Load the vocabs from the checkpoint.
         src_vocab = checkpoint['src_vocab']
         trg_vocab = checkpoint['trg_vocab']
