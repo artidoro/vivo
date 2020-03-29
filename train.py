@@ -41,13 +41,13 @@ def train(model,
 
             if args['eval_epochs'] is None and prev_modulo >= num_examples_seen % args['eval_examples']:
                 prev_modulo = num_examples_seen % args['eval_examples']
-                checkpoint_eval(model, loss_function, scheduler, optimizer, val_iter, args,
+                last_checkpoint = checkpoint_eval(model, loss_function, scheduler, optimizer, val_iter, args,
                 ignore_index, loss_tot, epoch, num_examples_seen)
 
         if args['eval_epochs'] is not None and (epoch + 1) % args['eval_epochs'] == 0:
-            checkpoint_eval(model, loss_function, scheduler, optimizer, val_iter, args,
+            last_checkpoint = checkpoint_eval(model, loss_function, scheduler, optimizer, val_iter, args,
                 ignore_index, loss_tot, epoch, num_examples_seen)
-
+    return last_checkpoint
 
 def checkpoint_eval(
         model,
@@ -88,8 +88,12 @@ def checkpoint_eval(
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': optimizer.state_dict(),
         'scheduler_state_dict': scheduler.state_dict(),
+        'src_vocab': model.src_vocab,
+        'trg_vocab': model.trg_vocab,
         'train_loss': loss_avg,
         'evaluation_results': evaluation_results,
         'args': args
         }, os.path.join(checkpoint_path, dt_string + '.pt'))
+
+    return os.path.join(checkpoint_path, dt_string + '.pt')
 

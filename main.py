@@ -13,7 +13,7 @@ import train
 import utils
 
 def parse_args(args):
-    parser = argparse.ArgumentParser(description='Arguments for the text classification model.')
+    parser = argparse.ArgumentParser(description='Arguments for vivo model.')
     # Data related.
     parser.add_argument('--min_freq', default=1, type=int)
     parser.add_argument('--max_len', default=100, type=int,
@@ -46,7 +46,8 @@ def parse_args(args):
 
     # Training.
     parser.add_argument('--mode', default='train', choices=['eval','train','test'])
-    parser.add_argument('--batch_size', default=64, type=int)
+    parser.add_argument('--train_batch_size', default=64, type=int)
+    parser.add_argument('--eval_batch_size', default=64, type=int)
     parser.add_argument('--train_epochs', default=20, type=int)
     parser.add_argument('--eval_epochs', default=None, type=int)
     parser.add_argument('--eval_examples', default=100000, type=int)
@@ -65,6 +66,7 @@ def parse_args(args):
     parser.add_argument('--checkpoint_path', required=True)
     parser.add_argument('--load_checkpoint_path', default=None)
     parser.add_argument('--use_checkpoint_args', action='store_true')
+    parser.add_argument('-o', '--overwrite_args', action='append', help='Arguments to overwrite.')
     parser.add_argument('--load_optimizer', action='store_true')
     parser.add_argument('--load_scheduler', action='store_true')
     parser.add_argument('--write_to_file', action='store_true', help='Write predictions to file.')
@@ -78,51 +80,46 @@ if __name__ == '__main__':
     logger = logging_utils.setup_logging(logger_name='vivo_logger', path=checkpoint_path)
     logger.info('Starting with args:\n{}'.format(pprint.pformat(args)))
 
-    # Load the data.
-    logger.info('Loading data and building iterators.')
-    train_iter, val_iter, test_iter, src_field, trg_field = utils.torchtext_iterators(
-        root_data_path=args['data_path'],
-        src_language=args['src_language'],
-        trg_language=args['trg_language'],
-        device=args['device'],
-        batch_size=args['batch_size'],
-        min_freq=args['min_freq'],
-        max_len=args['max_len'],
-        fasttext_embeds_path=args['fasttext_embeds_path'],
-        src_vocab_size=args['src_vocab_size'],
-        trg_vocab_size=args['trg_vocab_size'],
-        is_vivo=args['loss_function']=='vmf'
-    )
-
-    # Initialize model and optimizer. This requires loading checkpoint if specified in the arguments.
-    if args['load_checkpoint_path'] is None:
-        model = model_dict[args['model_name']](src_field.vocab, trg_field.vocab, **args)
-        model.to(torch.device(args['device']))
-        optimizer = torch.optim.Adam(model.parameters(), lr=args['lr'],
-            weight_decay=args['weight_decay'])
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
-            factor=args['factor'], patience=args['patience'], verbose=True)
-    else:
+    if args['load_checkpoint_path'] is not None:
         # Load checkpoint.
-        logger.info('Loading checkpoint {}'.format(args['load_checkpoint_path']))
         checkpoint_path = os.path.join('log', args['load_checkpoint_path'])
-        assert os.path.exists(checkpoint_path), 'Checkpoint path {} does not exists.'.format(checkpoint_path)
+        assert os.path.exists(checkpoint_path),\
+            'Checkpoint path {} does not exists.'.format(checkpoint_path)
         checkpoint = torch.load(checkpoint_path, map_location=torch.device(args['device']))
 
         # Use checkpoint arguments if required.
         if args['use_checkpoint_args']:
-            mode = args['mode']
-            device = args['device']
-            args = checkpoint['args']
-            args['mode'] = mode
-            args['device'] = device
+            checkpoint_args = checkpoint['args']
+            for arg in args['overwrite_args'] + ['load_checkpoint_path']:
+                checkpoint_args[arg] = args[arg]
+            if args['checkpoint_path'] != checkpoint_args['checkpoint_path']:
+                # Adding logger.
+                checkpoint_path = os.path.join('log', checkpoint_args['checkpoint_path'])
+                logger = logging_utils.add_logger(
+                    logger_name='vivo_logger', path=checkpoint_path)
+            args = checkpoint_args
+            logger.info('Loaded args are now:\n{}'.format(pprint.pformat(args)))
 
-        # Initialize model, optimizer, scheduler.
-        model = model_dict[checkpoint['args']['model_name']](src_field.vocab, trg_field.vocab, **args)
-        optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),
-            lr=args['lr'], weight_decay=args['weight_decay'])
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
-            factor=args['factor'], patience=args['patience'], verbose=True)
+    # Load the data.
+    logger.info('Loading data and building iterators.')
+    src_vocab, trg_vocab = None, None
+    if (args['load_checkpoint_path'] is not None
+        and 'src_vocab' in checkpoint
+        and 'trg_vocab' in checkpoint
+    ):
+        # Load the vocabs from the checkpoint.
+        src_vocab = checkpoint['src_vocab']
+        trg_vocab = checkpoint['trg_vocab']
+    train_iter, val_iter, test_iter, src_field, trg_field = utils.torchtext_iterators(
+        args, src_vocab=src_vocab, trg_vocab=trg_vocab)
+
+    # Initialize model and optimizer. This requires loading checkpoint if specified in the arguments.
+    model = model_dict[args['model_name']](src_field.vocab, trg_field.vocab, **args)
+    optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),
+        lr=args['lr'], weight_decay=args['weight_decay'])
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
+        factor=args['factor'], patience=args['patience'], verbose=True)
+    if args['load_checkpoint_path'] is not None:
         # Load the parameters.
         model.load_state_dict(checkpoint['model_state_dict'])
         model.to(torch.device(args['device']))
@@ -130,6 +127,7 @@ if __name__ == '__main__':
             optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         if args['load_scheduler']:
             scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+    model.to(torch.device(args['device']))
 
     if args['mode'] == 'train':
         logger.info('Starting training.')
@@ -158,21 +156,15 @@ if __name__ == '__main__':
             ignore_index=trg_field.vocab.stoi[trg_field.pad_token],
         )
 
-    else:
-        if args['mode'] == 'eval':
-            data_iter = val_iter
-        elif args['mode'] == 'test':
-            data_iter = test_iter
-        else:
-            raise NotImplementedError
-        logger.info('Starting evaluation.')
-        evaluation_results = {}
-        evaluation_results[args['mode']] = evaluation.decode(
-            model,
-            data_iter,
-            args['max_len'],
-            args['unk_replace'],
-            args['write_to_file'],
-            args['checkpoint_path']
-        )
-        logger.info('\n' + pprint.pformat(evaluation_results), args)
+    logger.info('Starting evaluation.')
+    data_iter = test_iter if args['mode'] == 'test' else val_iter
+    evaluation_results = {}
+    evaluation_results[args['mode']] = evaluation.decode(
+        model,
+        data_iter,
+        args['max_len'],
+        args['unk_replace'],
+        args['write_to_file'],
+        args['checkpoint_path']
+    )
+    logger.info('\n' + pprint.pformat(evaluation_results))
