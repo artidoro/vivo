@@ -79,17 +79,15 @@ def torchtext_iterators(args, src_vocab=None, trg_vocab=None):
     if args['fasttext_embeds_path'] is not None:
         embedding_vectors = torchtext.vocab.Vectors(name=args['fasttext_embeds_path'])
         trg_field.vocab.load_vectors(vectors=embedding_vectors)
-        if args['loss'] == 'vmf':
+        if args['loss_function'] == 'vmf':
             # Intialize UNK to the negative mean of the vectors of words not in vocab.
-            full_vocab = torchtext.data.Field()
-            full_vocab.build_vocab(train.trg, min_freq=args['min_freq'])
-            excluded_words = [word for word in full_vocab.vocab.stoi if word not in trg_field.vocab.stoi]
+            excluded_words = [word for word in embedding_vectors.stoi if word not in trg_field.vocab.stoi]
             if excluded_words:
                 excluded_vectors = torch.stack(
                     [embedding_vectors[excluded_word] for excluded_word in excluded_words\
                         if excluded_word in embedding_vectors.stoi]
                 )
-                unk_vector = -torch.mean(excluded_vectors,dim=0)
+                unk_vector = -torch.mean(excluded_vectors, dim=0)
             else:
                 unk_vector = torch.randn(trg_field.vocab.vectors[trg_field.vocab.stoi[UNK_TOKEN]].shape)
             trg_field.vocab.vectors[trg_field.vocab.stoi[UNK_TOKEN]] = unk_vector
