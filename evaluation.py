@@ -27,7 +27,7 @@ def write_predictions(
     # Datetime object containing current date and time.
     now = datetime.now()
     dt_string = now.strftime("%d-%m-%Y_%H:%M:%S")
-    logger = logging.getLogger("vivo_logger")
+    logger = logging.getLogger('vivo_logger')
     logger.info(f"Saving Predictions to file: {dt_string}")
     if not dir_path.exists():
         dir_path.mkdir()
@@ -47,6 +47,7 @@ def eval(model, loss_function, test_iter, args, ignore_index=-100) -> Any:
     loss_tot = 0
     eval_results = {}
     predictions = []
+    ground_truth = []
     prediction_strings = []
     is_vmf_loss = isinstance(loss_function, VonMisesFisherLoss)
     for batch in tqdm(test_iter):
@@ -84,7 +85,8 @@ def eval(model, loss_function, test_iter, args, ignore_index=-100) -> Any:
         preds = preds[..., 0]
         total += mask.sum().item()
         if args['write_to_file']:
-            predictions = preds.transpose(0,1).tolist()
+            ground_truth += idxs_to_sentences(batch.trg.transpose(0, 1).tolist(), model.trg_vocab)
+            predictions = preds.transpose(0, 1).tolist()
             if args['unk_replace']:
                 prediction_strings += idxs_to_sentences(predictions, model.trg_vocab,
                     src_sents=batch.src.permute(1,0), copy_lut=model.src_vocab, attn=attn_vectors)
@@ -99,7 +101,11 @@ def eval(model, loss_function, test_iter, args, ignore_index=-100) -> Any:
     # Write predictions to file.
     if args['write_to_file']:
         # Convert indices to words.
-        write_predictions(prediction_strings, args["checkpoint_path"])
+        write_predictions(
+            prediction_strings,
+            ground_truth,
+            args["checkpoint_path"]
+        )
 
     model.train(mode)
     return eval_results
