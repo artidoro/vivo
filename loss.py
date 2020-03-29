@@ -23,7 +23,6 @@ class VonMisesFisherLoss(torch.nn.modules.loss._Loss):
         reduction="mean",
         use_finite_sums=False,
         device: str = "cpu",
-        ignore_index=-100,
     ) -> None:
         super(VonMisesFisherLoss, self).__init__(reduction=reduction)
         self.lambda_1 = lambda_1
@@ -41,9 +40,16 @@ class VonMisesFisherLoss(torch.nn.modules.loss._Loss):
             self.get_normalizing_const = self._nc_lower_bound
 
     def forward(self, input: Tensor, target: Tensor) -> Tensor:
+        """
+        Note: if `reduction` is `"none"`, this loss function will return inccorect
+        values for which the `target` is a zero vector. They should be filtered out
+        before aggregation and backpropagation.
+        """
         # Only the target and not the input vector must have unit norm
-        unit_target = target / target.norm(dim=-1).reshape(-1, 1)
-        # Second line is batch-wise dot product
+        target_norms = target.norm(dim=-1)
+        zero_mask = target_norms != 0.0
+        # Add 1 to the 0's lest we get nan's which will ruin backward()
+        unit_target = target / (target_norms + ~zero_mask).unsqueeze(-1)
         input_norm = input.norm(dim=-1)
         x = (
             -self.get_normalizing_const(input_norm, input.shape[-1])
@@ -53,9 +59,9 @@ class VonMisesFisherLoss(torch.nn.modules.loss._Loss):
         if self.reduction == "none":
             return x
         elif self.reduction == "mean":
-            return x.mean()
+            return x[zero_mask].sum() / zero_mask.sum()
         elif self.reduction == "sum":
-            return x.sum()
+            return x[zero_mask].sum()
 
     def _nc_lower_bound(self, kappa: Tensor, m: Tensor) -> Tensor:
         v = m / 2

@@ -4,6 +4,7 @@ import sys
 import torch
 import torchtext
 from typing import Optional
+import numpy as np
 
 BOS_TOKEN = '<s>'
 EOS_TOKEN = '</s>'
@@ -69,7 +70,7 @@ def torchtext_iterators(
     src_field.build_vocab(train.src, min_freq=min_freq, max_size=src_vocab_size)
     trg_field.build_vocab(train.trg, min_freq=min_freq, max_size=trg_vocab_size)
 
-    train_iter, val_iter = torchtext.data.BucketIterator.splits((train, val),
+    train_iter, val_iter, test_iter = torchtext.data.BucketIterator.splits((train, val, test),
         batch_size=batch_size, device=torch.device(device), repeat=False,
         sort_key=lambda x: len(x.src))
 
@@ -93,25 +94,37 @@ def torchtext_iterators(
                 unk_vector = torch.randn(trg_field.vocab.vectors[trg_field.vocab.stoi[UNK_TOKEN]].shape)
             trg_field.vocab.vectors[trg_field.vocab.stoi[UNK_TOKEN]] = unk_vector
             
+            zero_idxs = (trg_field.vocab.vectors == 0).all(-1)
+            zero_idxs[trg_field.vocab.stoi[BOS_TOKEN]] = False
+            zero_idxs[trg_field.vocab.stoi[PAD_TOKEN]] = False
+            vector_dim = trg_field.vocab.vectors.shape[-1]
+            for i in np.argwhere(zero_idxs).squeeze(0):
+                trg_field.vocab.vectors[i] = torch.Tensor(
+                np.random.uniform(-1.0, 1.0, vector_dim)
+                )
+
     logger.info('The size of src vocab is {} and trg vocab is {}.'.format(
         len(src_field.vocab.itos), len(trg_field.vocab.itos)))
 
-    return train_iter, val_iter, test, src_field, trg_field
+    return train_iter, val_iter, test_iter, src_field, trg_field
 
 def get_nearest_neighbor(
     x: torch.Tensor,
     neighbors: torch.Tensor,
     neighbor_norms: Optional[torch.Tensor] = None,
-    return_indexes: bool = False,
+    top_k: int = 1,
 ) -> torch.Tensor:
     if neighbor_norms is None:
         neighbor_norms = neighbors.norm(dim=-1)
     batch_dims = len(x.shape) - 1
-    norms = neighbor_norms.repeat(*(1,)*batch_dims, 1) * x.norm(dim=-1).unsqueeze(-1)
+    norms = neighbor_norms.repeat(*(1,) * batch_dims, 1) * x.norm(dim=-1).unsqueeze(-1)
+    zero_mask = norms == 0.0
     dots = (
-        neighbors.unsqueeze(0).repeat(*(1,)*batch_dims, 1, 1) @ x.unsqueeze(-1)
+        neighbors.unsqueeze(0).repeat(*(1,) * batch_dims, 1, 1) @ x.unsqueeze(-1)
     ).squeeze(-1)
-    if return_indexes:
-        return (dots / norms).argmax(-1)
+    distances = (dots / norms)
+    distances[zero_mask] = 0.0
+    if top_k > 1:
+        return torch.topk(distances, top_k, sorted=True).indices
     else:
-        return neighbors[(dots / norms).argmax(-1)]
+        return distances.argmax(-1)

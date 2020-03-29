@@ -48,7 +48,8 @@ def parse_args(args):
     parser.add_argument('--mode', default='train')
     parser.add_argument('--batch_size', default=64, type=int)
     parser.add_argument('--train_epochs', default=20, type=int)
-    parser.add_argument('--eval_epochs', default=1, type=int)
+    parser.add_argument('--eval_epochs', default=None, type=int)
+    parser.add_argument('--eval_examples', default=100000, type=int)
     parser.add_argument('--vmf_lambda_1', default=2e-2, type=float)
     parser.add_argument('--vmf_lambda_2', default=1e-1, type=float)
     parser.add_argument('--lr', default=2e-4, type=float)
@@ -57,6 +58,7 @@ def parse_args(args):
     parser.add_argument('--patience', default=100, type=int, help='Scheduler patience.')
     parser.add_argument('--dropout', default=0.3, type=float)
     parser.add_argument('--gradient_clipping', default=5, type=float)
+    parser.add_argument('--top_k', default=5, type=int)
 
     # Save-load ops.
     parser.add_argument('--data_path', default='.data', help='Path to IWSLT16.')
@@ -78,7 +80,7 @@ if __name__ == '__main__':
 
     # Load the data.
     logger.info('Loading data and building iterators.')
-    train_iter, val_iter, test, src_field, trg_field = utils.torchtext_iterators(
+    train_iter, val_iter, test_iter, src_field, trg_field = utils.torchtext_iterators(
         root_data_path=args['data_path'],
         src_language=args['src_language'],
         trg_language=args['trg_language'],
@@ -137,7 +139,7 @@ if __name__ == '__main__':
                 device=args["device"],
                 lambda_1=args["vmf_lambda_1"],
                 lambda_2=args["vmf_lambda_2"],
-                reduction="none",
+                reduction="mean",
             )
         else:
             raise ValueError(f"Unknown loss function: {args['loss_function']}")
@@ -152,19 +154,21 @@ if __name__ == '__main__':
             ignore_index=trg_field.vocab.stoi[trg_field.pad_token],
         )
 
-    elif args['mode'] == 'eval':
+    else:
+        if args['mode'] == 'eval':
+            data_iter = val_iter
+        elif args['mode'] == 'test':
+            data_iter = test_iter
+        else:
+            raise NotImplementedError
         logger.info('Starting evaluation.')
         evaluation_results = {}
-        evaluation_results['valid'] = evaluation.decode(
+        evaluation_results[args['mode']] = evaluation.decode(
             model,
-            val_iter,
+            data_iter,
             args['max_len'],
             args['unk_replace'],
+            args['write_to_file'],
+            args['checkpoint_path']
         )
         logger.info('\n' + pprint.pformat(evaluation_results), args)
-
-    elif args['mode'] == 'test':
-        raise NotImplementedError()
-        logger.info('Starting testing.')
-        utils.predict_write_to_file(model, test, args)
-        logger.info('Done writing predictions to file.')
