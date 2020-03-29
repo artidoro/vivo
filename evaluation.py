@@ -80,7 +80,7 @@ def eval(model, loss_function, test_iter, args, ignore_index=-100) -> Any:
             correct_tokens = preds[..., :k + 1] == batch.trg[1:, :, np.newaxis]
             correct_tokens_in_top_k = correct_tokens.any(-1)
             total_correct_tokens = correct_tokens_in_top_k.sum().item()
-            correct[k] = total_correct_tokens
+            correct[k] += total_correct_tokens
         # Keep only the top 1
         preds = preds[..., 0]
         total += mask.sum().item()
