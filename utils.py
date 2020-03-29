@@ -79,10 +79,8 @@ def torchtext_iterators(args, src_vocab=None, trg_vocab=None):
     if args['fasttext_embeds_path'] is not None:
         embedding_vectors = torchtext.vocab.Vectors(name=args['fasttext_embeds_path'])
         trg_field.vocab.load_vectors(vectors=embedding_vectors)
-        # TODO Remove words without embedding from the output vocabulary
-        trg_field.vocab.vectors[trg_field.vocab.stoi[BOS_TOKEN]] = 1/16
-        trg_field.vocab.vectors[(trg_field.vocab.vectors == 0).all(-1)] = trg_field.vocab.vectors.mean(0)
         if args['loss'] == 'vmf':
+            # Intialize UNK to the negative mean of the vectors of words not in vocab.
             full_vocab = torchtext.data.Field()
             full_vocab.build_vocab(train.trg, min_freq=args['min_freq'])
             excluded_words = [word for word in full_vocab.vocab.stoi if word not in trg_field.vocab.stoi]
@@ -95,10 +93,12 @@ def torchtext_iterators(args, src_vocab=None, trg_vocab=None):
             else:
                 unk_vector = torch.randn(trg_field.vocab.vectors[trg_field.vocab.stoi[UNK_TOKEN]].shape)
             trg_field.vocab.vectors[trg_field.vocab.stoi[UNK_TOKEN]] = unk_vector
+            # BOS and PAD are initialized to the zero vector.
             zero_idxs = (trg_field.vocab.vectors == 0).all(-1)
             zero_idxs[trg_field.vocab.stoi[BOS_TOKEN]] = False
             zero_idxs[trg_field.vocab.stoi[PAD_TOKEN]] = False
             vector_dim = trg_field.vocab.vectors.shape[-1]
+            # Other vectors of words not in fasttext are randomly initialized.
             for i in np.argwhere(zero_idxs).squeeze(0):
                 trg_field.vocab.vectors[i] = torch.Tensor(
                     np.random.uniform(-1.0, 1.0, vector_dim)
