@@ -88,6 +88,8 @@ def checkpoint_eval(
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': optimizer.state_dict(),
         'scheduler_state_dict': scheduler.state_dict(),
+        'src_vocab': model.src_vocab,
+        'trg_vocab': model.trg_vocab,
         'train_loss': loss_avg,
         'evaluation_results': evaluation_results,
         'args': args

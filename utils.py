@@ -45,7 +45,7 @@ def torchtext_iterators(args, src_vocab=None, trg_vocab=None):
     )
 
     train, val, test = torchtext.datasets.TranslationDataset.splits(
-        path=os.path.join(args['root_data_path'], data_path),
+        path=os.path.join(args['data_path'], data_path),
         train=TRAIN_PREFEX,
         validation=VALID_PREFIX,
         test=TEST_PREFIX,

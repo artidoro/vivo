@@ -28,3 +28,14 @@ def setup_logging(logger_name='vivo_logger', path='log'):
     logger.addHandler(ch)
     logger.addHandler(fh)
     return logger
+
+def add_logger(logger_name='vivo_logger', path='log'):
+    """
+    Adds logger to file.
+    """
+    logger = logging.getLogger(logger_name)
+    fh = logging.FileHandler(os.path.join(path, 'log.log'))
+    fh.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
