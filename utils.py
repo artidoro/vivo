@@ -86,10 +86,13 @@ def torchtext_iterators(
             full_vocab = torchtext.data.Field()
             full_vocab.build_vocab(train.trg, min_freq=min_freq)
             excluded_words = [word for word in full_vocab.vocab.stoi if word not in trg_field.vocab.stoi]
-            excluded_vectors = torch.stack([embedding_vectors[excluded_word] for excluded_word in excluded_words if excluded_word in embedding_vectors.stoi])
-            unk_vector = -torch.mean(excluded_vectors,dim=0)
+            if excluded_words:
+                excluded_vectors = torch.stack([embedding_vectors[excluded_word] for excluded_word in excluded_words if excluded_word in embedding_vectors.stoi])
+                unk_vector = -torch.mean(excluded_vectors,dim=0)
+            else:
+                unk_vector = torch.randn(trg_field.vocab.vectors[trg_field.vocab.stoi[UNK_TOKEN]].shape)
             trg_field.vocab.vectors[trg_field.vocab.stoi[UNK_TOKEN]] = unk_vector
-
+            
     logger.info('The size of src vocab is {} and trg vocab is {}.'.format(
         len(src_field.vocab.itos), len(trg_field.vocab.itos)))
 
