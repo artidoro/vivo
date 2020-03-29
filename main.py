@@ -73,6 +73,20 @@ def parse_args(args):
 if __name__ == '__main__':
     args = parse_args(sys.argv[1:])
 
+    if args['load_checkpoint_path'] is None:
+        # Load checkpoint.
+        logger.info('Loading checkpoint {}'.format(args['load_checkpoint_path']))
+        checkpoint_path = os.path.join('log', args['load_checkpoint_path'])
+        assert os.path.exists(checkpoint_path), 'Checkpoint path {} does not exists.'.format(checkpoint_path)
+        checkpoint = torch.load(checkpoint_path, map_location=torch.device(args['device']))
+
+        # Use checkpoint arguments if required.
+        if args['use_checkpoint_args']:
+            checkpoint['mode'] = args['mode']
+            checkpoint['device'] = args['device']
+            checkpoint['load_checkpoint_path'] = args['load_checkpoint_path']
+            args = checkpoint['args']
+
     # Initialize logging.
     checkpoint_path = os.path.join('log', args['checkpoint_path'])
     logger = logging_utils.setup_logging(logger_name='vivo_logger', path=checkpoint_path)
@@ -80,19 +94,12 @@ if __name__ == '__main__':
 
     # Load the data.
     logger.info('Loading data and building iterators.')
-    train_iter, val_iter, test_iter, src_field, trg_field = utils.torchtext_iterators(
-        root_data_path=args['data_path'],
-        src_language=args['src_language'],
-        trg_language=args['trg_language'],
-        device=args['device'],
-        batch_size=args['batch_size'],
-        min_freq=args['min_freq'],
-        max_len=args['max_len'],
-        fasttext_embeds_path=args['fasttext_embeds_path'],
-        src_vocab_size=args['src_vocab_size'],
-        trg_vocab_size=args['trg_vocab_size'],
-        is_vivo=args['loss_function']=='vmf'
-    )
+    src_vocab, trg_vocab = None, None
+    if args['load_checkpoint_path'] is not None:
+        # Load the vocabs from the checkpoint.
+        src_vocab = checkpoint['model_state_dict']['src_vocab']
+        trg_vocab = checkpoint['model_state_dict']['trg_vocab']
+    train_iter, val_iter, test_iter, src_field, trg_field = utils.torchtext_iterators(args, src_vocab, trg_vocab)
 
     # Initialize model and optimizer. This requires loading checkpoint if specified in the arguments.
     if args['load_checkpoint_path'] is None:
@@ -103,19 +110,7 @@ if __name__ == '__main__':
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
             factor=args['factor'], patience=args['patience'], verbose=True)
     else:
-        # Load checkpoint.
-        logger.info('Loading checkpoint {}'.format(args['load_checkpoint_path']))
-        checkpoint_path = os.path.join('log', args['load_checkpoint_path'])
-        assert os.path.exists(checkpoint_path), 'Checkpoint path {} does not exists.'.format(checkpoint_path)
-        checkpoint = torch.load(checkpoint_path, map_location=torch.device(args['device']))
 
-        # Use checkpoint arguments if required.
-        if args['use_checkpoint_args']:
-            mode = args['mode']
-            device = args['device']
-            args = checkpoint['args']
-            args['mode'] = mode
-            args['device'] = device
 
         # Initialize model, optimizer, scheduler.
         model = model_dict[checkpoint['args']['model_name']](src_field.vocab, trg_field.vocab, **args)

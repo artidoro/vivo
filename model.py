@@ -198,7 +198,7 @@ class AttentionDecoder(nn.Module):
         attended_output = self.global_attn(h_decoder, h_encoder)
         self.attention.append(self.global_attn.alphas) # num_target_words x b x num_src_words
         return self.dropout(attended_output), hidden
-    
+
     def _reset(self):
         """ Function to be called every time a new batch is loaded. It resets the attention stored in the model """
         self.attention = []
