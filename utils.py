@@ -4,6 +4,7 @@ import sys
 import torch
 import torchtext
 from typing import Optional
+import numpy as np
 
 BOS_TOKEN = '<s>'
 EOS_TOKEN = '</s>'
@@ -75,11 +76,18 @@ def torchtext_iterators(
     # Load pretrained embeddings.
     if fasttext_embeds_path is not None:
         trg_field.vocab.load_vectors(
-            vectors=torchtext.vocab.Vectors(name=fasttext_embeds_path)
+            vectors=torchtext.vocab.Vectors(name=fasttext_embeds_path),
         )
         # TODO Remove words without embedding from the output vocabulary
-        trg_field.vocab.vectors[trg_field.vocab.stoi[BOS_TOKEN]] = 1/16
-        trg_field.vocab.vectors[(trg_field.vocab.vectors == 0).all(-1)] = trg_field.vocab.vectors.mean(0)
+        trg_field.vocab.vectors[trg_field.vocab.stoi[UNK_TOKEN]] = -trg_field.vocab.vectors.mean(0)
+        zero_idxs = (trg_field.vocab.vectors == 0).all(-1)
+        zero_idxs[trg_field.vocab.stoi[BOS_TOKEN]] = False
+        zero_idxs[trg_field.vocab.stoi[PAD_TOKEN]] = False
+        vector_dim = trg_field.vocab.vectors.shape[-1]
+        for i in np.argwhere(zero_idxs).squeeze(0):
+            trg_field.vocab.vectors[i] = torch.Tensor(
+                np.random.uniform(-1.0, 1.0, vector_dim)
+            )
 
     logger.info('The size of src vocab is {} and trg vocab is {}.'.format(
         len(src_field.vocab.itos), len(trg_field.vocab.itos)))
@@ -96,12 +104,13 @@ def get_nearest_neighbor(
         neighbor_norms = neighbors.norm(dim=-1)
     batch_dims = len(x.shape) - 1
     norms = neighbor_norms.repeat(*(1,) * batch_dims, 1) * x.norm(dim=-1).unsqueeze(-1)
+    zero_mask = norms == 0.0
     dots = (
         neighbors.unsqueeze(0).repeat(*(1,) * batch_dims, 1, 1) @ x.unsqueeze(-1)
     ).squeeze(-1)
+    distances = (dots / norms)
+    distances[zero_mask] = 0.0
     if top_k > 1:
-        topk = torch.topk(dots / norms, top_k, sorted=True)
-        return topk.indices
+        return torch.topk(distances, top_k, sorted=True).indices
     else:
-        dists = dots / norms
-        return dists.argmax(-1)
+        return distances.argmax(-1)
