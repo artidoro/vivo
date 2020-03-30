@@ -3,6 +3,7 @@ python main.py \
     --device cuda \
     --dropout 0.0 \
     --enc_bidirectional \
+#    --enc_num_layers 2\
     --fasttext_embeds_path ~/data/corpus.fasttext.txt \
     --input_feed \
     --loss_function vmf \
