@@ -1,5 +1,5 @@
 python main.py \
-    --checkpoint_path vmf \
+    --checkpoint_path vmf-enfr \
     --device cuda \
     --dropout 0.0 \
     --enc_bidirectional \
