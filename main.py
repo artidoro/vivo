@@ -43,6 +43,7 @@ def parse_args(args):
     parser.add_argument('--unk_replace', action='store_true')
     parser.add_argument('--eos_vector_replace', action='store_true')
     parser.add_argument('--use_finite_sum', action='store_true')
+    parser.add_argument('--beam_size', default=1, type=int)
     parser.add_argument('--fasttext_embeds_path', default=None,
         help='Path to file containing fasttext embeddings.')
 
@@ -94,7 +95,11 @@ if __name__ == '__main__':
             checkpoint_args = checkpoint['args']
             if args['overwrite_args'] is None:
                 args['overwrite_args'] = []
-            for arg in args['overwrite_args'] + ['load_checkpoint_path']:
+                # Use extra variable to satisfy mypy
+                overwrite_args = []
+            else:
+                overwrite_args = args['overwrite_args']
+            for arg in overwrite_args + ['load_checkpoint_path']:
                 checkpoint_args[arg] = args[arg]
             if args['checkpoint_path'] != checkpoint_args['checkpoint_path']:
                 # Adding logger.
@@ -170,6 +175,7 @@ if __name__ == '__main__':
         args['max_len'],
         args['unk_replace'],
         args['write_to_file'],
-        args['checkpoint_path']
+        args['checkpoint_path'],
+        beam_size=args['beam_size'],
     )
     logger.info('\n' + pprint.pformat(evaluation_results))

@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Tuple, Dict, Any
 
 import math
 import numpy as np
@@ -23,11 +23,22 @@ class AttentionEncoderDecoder(nn.Module):
         h_encoder = self.encoder(src)
         return self.decoder(trg, h_encoder)
 
-    def decode(self, src: Tensor, max_decoding_len: int) -> List[List[int]]:
+    def decode(
+        self,
+        src: Tensor,
+        max_decoding_len: int,
+        beam_size: int = 1,
+    ) -> List[List[int]]:
         h_encoder = self.encoder(src)
         bos_idx = self.trg_vocab.stoi[utils.BOS_TOKEN]
         eos_idx = self.trg_vocab.stoi[utils.EOS_TOKEN]
-        return self.decoder.decode(h_encoder, max_decoding_len, bos_idx, eos_idx)
+        return self.decoder.decode(
+            h_encoder,
+            max_decoding_len,
+            bos_idx,
+            eos_idx,
+            beam_size,
+        )
 
 class Transformer(nn.Module):
     ''' Transformer '''
@@ -182,26 +193,27 @@ class AttentionDecoder(nn.Module):
                 self.linear1.weight = self.embedding.weight
 
         self.dropout = nn.Dropout(kwargs["dropout"])
-        self.attention = []
+        # TODO: Handle better
+        self.attention = None
 
     def step(
         self,
         token_embedding: Tensor,
         model_output: Tensor,
         hidden: Tensor,
+        attention: List[Tensor],
         h_encoder: Tensor,
-    ) -> Tuple[Tensor, Tuple[Tensor, Tensor]]:
+    ) -> Tuple[Tensor, Tuple[Tensor, Tensor], Tensor]:
         input_combined = token_embedding
         if self.input_feed:
             input_combined = torch.cat([input_combined, model_output], dim=-1)
         h_decoder, hidden = self.lstm(input_combined, hidden)
         attended_output = self.global_attn(h_decoder, h_encoder)
-        self.attention.append(self.global_attn.alphas) # num_target_words x b x num_src_words
-        return self.dropout(attended_output), hidden
-
-    def _reset(self):
-        """ Function to be called every time a new batch is loaded. It resets the attention stored in the model """
-        self.attention = []
+        # num_target_words x b x num_src_words
+        # attention.append( self.global_attn.alphas)
+        # TODO make more efficient
+        attention = torch.cat([attention, self.global_attn.alphas.unsqueeze(0)], 0)
+        return self.dropout(attended_output), hidden, attention
 
     def forward(self, trg_batch: Tensor, h_encoder: Tensor) -> Tensor:
         trg_embeddings = self.embedding(trg_batch)
@@ -210,22 +222,27 @@ class AttentionDecoder(nn.Module):
             self.embedding.weight.device
         )
         hidden = None
+        attention: List[Tensor] = []
         outputs = []
         self._reset()
         for i in range(trg_embeddings.shape[0]):
             trg_embed = trg_embeddings[i : i + 1, :, :]  # t=1 x b x d
-            output, hidden = self.step(trg_embed, output, hidden, h_encoder)
+            output, hidden, attention = self.step(
+                trg_embed, output, hidden, attention, h_encoder
+            )
             if self.xent:
                 output_projected = self.linear1(output)
                 outputs.append(output_projected)
             else:
                 outputs.append(output)
+        self.attention = attention
         return torch.cat(outputs, 0)
 
-    def decode(
+    def greedy_decode(
         self, h_encoder: Tensor, max_decoding_len: int, bos_idx: int, eos_idx: int,
     ) -> List[List[int]]:
-        self._reset()
+        # TODO Better way to store this
+        self.eos_idx = eos_idx
         bos_idx_tensor = torch.LongTensor([bos_idx]).to(self.embedding.weight.device)
         batch_size = h_encoder.shape[1]
         model_out = output = torch.zeros(
@@ -239,9 +256,13 @@ class AttentionDecoder(nn.Module):
             .to(self.embedding.weight.device)
         ]
         eos_generated = np.zeros((1, batch_size), dtype=np.bool)
+        attention: List[Tensor] = []
+
         while len(decoded_idxs) < max_decoding_len and (eos_generated == 0).any():
             decoded_embeds = self.embedding(decoded_idxs[-1])
-            model_out, hidden = self.step(decoded_embeds, model_out, hidden, h_encoder)
+            model_out, hidden, attention = self.step(
+                decoded_embeds, model_out, hidden, attention, h_encoder
+            )
             if self.xent:
                 model_sm = self.linear1(model_out)
                 decoded_idxs.append(model_sm.argmax(-1))
@@ -249,13 +270,138 @@ class AttentionDecoder(nn.Module):
                 idxs = utils.get_nearest_neighbor(model_out, self.embedding.weight)
                 decoded_idxs.append(idxs)
             eos_generated += (decoded_idxs[-1] == eos_idx).cpu().numpy()
-
+        self.attention = attention
         return (
             np.array([x.cpu().numpy() for x in decoded_idxs])
             .squeeze(1)
             .transpose(1, 0)
             .tolist()
         )
+
+    def decode(
+        self,
+        h_encoder: Tensor,
+        max_decoding_len: int,
+        bos_idx: int,
+        eos_idx: int,
+        beam_size: int = 1,
+    ) -> List[List[int]]:
+        # TODO Better way to store this
+        self.eos_idx = eos_idx
+        bos_idx_tensor = torch.LongTensor([bos_idx]).to(self.embedding.weight.device)
+        batch_size = h_encoder.shape[1]
+        input_size = h_encoder.shape[0]
+        model_out = output = torch.zeros(
+            [1, batch_size, self.embedding.weight.shape[1]]
+        ).to(self.embedding.weight.device)
+        hidden = None
+        device = self.embedding.weight.device
+        decoded_idxs = (
+            torch.LongTensor([bos_idx]).repeat(batch_size).unsqueeze(0).to(device)
+        )
+        eos_generated = np.zeros((1, batch_size), dtype=np.bool)
+
+        init_state = {
+            "idxs": decoded_idxs,
+            "hidden": hidden,
+            "attention": torch.zeros([0, batch_size, input_size]).to(device),
+            "model_out": model_out,
+            "score": torch.zeros(batch_size).to(device),
+            "is_done": np.zeros(batch_size, dtype=bool),
+        }
+        states: List[Dict[str, Any]] = [init_state]
+        keep_going = True
+        iters = 0
+        final_states = []
+        while len(states) > 0 and iters < max_decoding_len:
+            candidates: List[Dict] = []
+            for state in states:
+                candidates += self._next_states(state, h_encoder, beam_size)
+            states = self._filter_top_k(candidates, beam_size)
+            keep_going = False
+            i = 0
+            while i < len(states):
+                if states[i]["is_done"].all():
+                    final_states.append(states.pop(i))
+                else:
+                    i += 1
+            iters += 1
+        final_states += states
+
+        top_idxs = torch.cat([s["score"] for s in final_states], 0).argmax(0)
+        return [final_states[ci]["idxs"][:, bi] for bi, ci in enumerate(top_idxs)]
+
+    def _filter_top_k(self, candidates, k) -> List[Dict]:
+        scores = torch.cat([c["score"] for c in candidates], 0)
+        top_idxs = torch.topk(scores, k, dim=0).indices
+        dict_slice = lambda k: [c[k] for c in candidates]
+        states: List[Dict] = []
+        for group_idxs in top_idxs:
+            new_idxs: List[Tensor] = []  # n, bs
+            new_hidden0: List[Tensor] = []  # 2, bs, 1024
+            new_hidden1: List[Tensor] = []  # 2, bs, 1024
+            new_attention: List[Tensor] = []  # n, bs, len_in
+            new_model_out: List[Tensor] = []  # 1, bs, 300
+            new_score: List[Tensor] = []  # 1, bs
+            new_is_done: List[Tensor] = []  # 1, bs (numpy)
+            # Batch index, candidate index
+            for bi, ci in enumerate(group_idxs):
+                new_idxs.append(candidates[ci]["idxs"][:, bi])
+                new_hidden0.append(candidates[ci]["hidden"][0][:, bi, :])
+                new_hidden1.append(candidates[ci]["hidden"][1][:, bi, :])
+                new_attention.append(candidates[ci]["attention"][:, bi, :])
+                new_model_out.append(candidates[ci]["model_out"][:, bi, :])
+                new_score.append(candidates[ci]["score"][:, bi])
+                new_is_done.append(candidates[ci]["is_done"][bi])
+            states.append(
+                {
+                    "idxs": torch.stack(new_idxs, 1),
+                    "hidden": (
+                        torch.stack(new_hidden0, 1),
+                        torch.stack(new_hidden1, 1),
+                    ),
+                    "attention": torch.stack(new_attention, 1),
+                    "model_out": torch.stack(new_model_out, 1),
+                    "score": torch.stack(new_score, 1),
+                    "is_done": np.stack(new_is_done, 0),
+                }
+            )
+        return states
+
+    def _next_states(self, state, h_encoder, k) -> List[Dict]:
+        decoded_embeds = self.embedding(state["idxs"][-1].unsqueeze(0))
+        model_out, hidden, state["attention"] = self.step(
+            decoded_embeds,
+            state["model_out"],
+            state["hidden"],
+            state["attention"],
+            h_encoder,
+        )
+        if self.xent:
+            model_sm = self.linear1(model_out)
+            top_k = torch.topk(model_sm.log_softmax(-1), k)
+            new_states = []
+            for i in range(k):
+                # TODO Do this more efficiently.
+                new_idxs = torch.cat([state["idxs"], top_k.indices[..., i]], 0)
+                is_done = (
+                    state["is_done"] + (new_idxs[-1] == self.eos_idx).cpu().numpy()
+                )
+                new_states.append(
+                    {
+                        "idxs": new_idxs,
+                        "hidden": hidden,
+                        "attention": state["attention"],
+                        "model_out": model_out,
+                        "score": state["score"] + top_k.values[..., i],
+                        "is_done": is_done,
+                    }
+                )
+            return new_states
+        else:
+            raise NotImplementedError
+            # idxs = utils.get_nearest_neighbor(model_out, self.embedding.weight)
+            # decoded_idxs.append(idxs)
 
 
 model_dict = {
