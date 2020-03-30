@@ -39,3 +39,4 @@ def add_logger(logger_name='vivo_logger', path='log'):
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     fh.setFormatter(formatter)
     logger.addHandler(fh)
+    return logger
