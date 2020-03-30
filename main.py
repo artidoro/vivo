@@ -42,6 +42,7 @@ def parse_args(args):
     parser.add_argument('--tie_embed', action='store_true')
     parser.add_argument('--unk_replace', action='store_true')
     parser.add_argument('--eos_vector_replace', action='store_true')
+    parser.add_argument('--use_finite_sum', action='store_true')
     parser.add_argument('--fasttext_embeds_path', default=None,
         help='Path to file containing fasttext embeddings.')
 
@@ -145,6 +146,7 @@ if __name__ == '__main__':
                 lambda_1=args["vmf_lambda_1"],
                 lambda_2=args["vmf_lambda_2"],
                 reduction="mean",
+                use_finite_sum=args["use_finite_sum"],
             )
         else:
             raise ValueError(f"Unknown loss function: {args['loss_function']}")

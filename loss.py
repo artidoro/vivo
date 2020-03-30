@@ -21,15 +21,15 @@ class VonMisesFisherLoss(torch.nn.modules.loss._Loss):
         lambda_2: float = 1.0,
         n_bessel_iters=10,
         reduction="mean",
-        use_finite_sums=False,
+        use_finite_sum=False,
         device: str = "cpu",
     ) -> None:
         super(VonMisesFisherLoss, self).__init__(reduction=reduction)
         self.lambda_1 = lambda_1
         self.lambda_2 = lambda_2
         self.device = device
-        self.use_finite_sums = use_finite_sums
-        if self.use_finite_sums:
+        self.use_finite_sum = use_finite_sum
+        if self.use_finite_sum:
             bessel_consts = self.calculate_bessel_consts(
                 input_dim / 2 - 1, n_bessel_iters
             )
