@@ -1,10 +1,20 @@
-python main.py --checkpoint_path vmf\
-               --loss_function vmf\
-               --device cuda\
-               --src_language de\
-               --trg_language en\
-               --enc_bidirectional\
-               --input_feed\
-               --tie_embed\
-               --unk_replace\
-               --fasttext_embeds_path ~/data/corpus.fasttext.txt
+python main.py \
+    --checkpoint_path vmf \
+    --device cuda \
+    --dropout 0.0 \
+    --enc_bidirectional \
+    --enc_embed_size 300 \
+    --fasttext_embeds_path ~/data/corpus.fasttext.txt \
+    --input_feed \
+    --loss_function vmf \
+    --lr 5e-4 \
+    --max_len 100 \
+    --mode train \
+    --src_language de \
+    --tie_embed \
+    --train_epochs 20 \
+    --trg_language en \
+    --unk_replace \
+    --vmf_lambda_1 0.02 \
+    --vmf_lambda_2 0.1 \
+    --write_to_file \
