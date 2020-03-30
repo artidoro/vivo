@@ -90,6 +90,8 @@ if __name__ == '__main__':
         # Use checkpoint arguments if required.
         if args['use_checkpoint_args']:
             checkpoint_args = checkpoint['args']
+            if args['overwrite_args'] is None:
+                args['overwrite_args'] = []
             for arg in args['overwrite_args'] + ['load_checkpoint_path']:
                 checkpoint_args[arg] = args[arg]
             if args['checkpoint_path'] != checkpoint_args['checkpoint_path']:
