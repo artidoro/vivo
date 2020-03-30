@@ -95,6 +95,9 @@ def torchtext_iterators(args, src_vocab=None, trg_vocab=None):
             zero_idxs = (trg_field.vocab.vectors == 0).all(-1)
             zero_idxs[trg_field.vocab.stoi[BOS_TOKEN]] = False
             zero_idxs[trg_field.vocab.stoi[PAD_TOKEN]] = False
+            if args["eos_vector_replace"]:
+                period_vector = trg_field.vocab.vectors[trg_field.vocab.stoi['.']]
+                trg_field.vocab.vectors[trg_field.vocab.stoi[EOS_TOKEN]] = -period_vector
             vector_dim = trg_field.vocab.vectors.shape[-1]
             # Other vectors of words not in fasttext are randomly initialized.
             for i in np.argwhere(zero_idxs).squeeze(0):
