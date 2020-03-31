@@ -1,10 +1,12 @@
-python main.py --checkpoint_path sm\
-               --src_language de\
-               --trg_language en\
-               --enc_bidirectional\
-               --input_feed\
-               --tie_embed\
-               --unk_replace\
-               --mode eval\
-               --load_checkpoint_path sm/28-03-2020_12:58:25.pt\
-               --device cuda:5
+#!/bin/bash
+python main.py\
+    --checkpoint_path "vmf-$1$2-eval-all"\
+    --src_language "$1"\
+    --trg_language "$2"\
+    --device "cuda:$3"\
+    --load_checkpoint_path "$path$filename"\
+    --use_checkpoint_args\
+    --unk_replace\
+    --mode eval\
+    -o mode\
+    -o unk_replace
