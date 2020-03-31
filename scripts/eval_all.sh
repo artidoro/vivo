@@ -1,6 +1,5 @@
 #!/bin/bash
 for filename in $1"/*.pt;" do
-    ./MyProgram.exe "$filename"
     python main.py --checkpoint_path eval_all\
                --src_language $2\
                --trg_language $3\
