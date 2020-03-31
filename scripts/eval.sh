@@ -1,5 +1,5 @@
 #!/bin/bash
-python main.py\
+python main_all.py\
     --checkpoint_path "vmf-$2$3-eval-all"\
     --src_language "$2"\
     --trg_language "$3"\
@@ -8,6 +8,5 @@ python main.py\
     --use_checkpoint_args\
     --unk_replace\
     --mode eval\
-    -o eos_vector_replace\
     -o mode\
     -o unk_replace
