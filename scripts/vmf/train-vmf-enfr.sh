@@ -17,3 +17,5 @@ python main.py \
     --vmf_lambda_1 0.02 \
     --vmf_lambda_2 0.1 \
     --write_to_file \
+    --enc_num_layers 2\
+

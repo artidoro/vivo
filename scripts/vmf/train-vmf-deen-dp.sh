@@ -1,7 +1,7 @@
 python main.py \
-    --checkpoint_path vmf-fren \
+    --checkpoint_path vmf-deen-dp \
     --device cuda \
-    --dropout 0.0 \
+    --dropout 0.1 \
     --enc_bidirectional \
     --fasttext_embeds_path ~/data/corpus.fasttext.txt \
     --input_feed \
@@ -9,7 +9,7 @@ python main.py \
     --lr 5e-4 \
     --max_len 100 \
     --mode train \
-    --src_language fr \
+    --src_language de \
     --train_epochs 20 \
     --eval_epochs 1 \
     --trg_language en \
@@ -17,3 +17,5 @@ python main.py \
     --vmf_lambda_1 0.02 \
     --vmf_lambda_2 0.1 \
     --write_to_file \
+    --enc_num_layers 2\
+
