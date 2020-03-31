@@ -1,6 +1,6 @@
 python main.py \
-    --checkpoint_path vmf-enfr \
-    --device cuda \
+    --checkpoint_path vmf-enfr-fs \
+    --device cuda:4 \
     --dropout 0.0 \
     --enc_bidirectional \
     --fasttext_embeds_path ~/data/corpus.fasttext.fr \
@@ -18,4 +18,5 @@ python main.py \
     --vmf_lambda_2 0.1 \
     --write_to_file \
     --enc_num_layers 2\
+    --use_finite_sum\
 

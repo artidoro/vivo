@@ -1,6 +1,6 @@
 python main.py \
     --checkpoint_path vmf-deen-unk \
-    --device cuda \
+    --device cuda:3 \
     --dropout 0.0 \
     --enc_bidirectional \
     --fasttext_embeds_path ~/data/corpus.fasttext.txt \
