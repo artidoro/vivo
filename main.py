@@ -100,8 +100,8 @@ if __name__ == '__main__':
             if args['checkpoint_path'] != checkpoint_args['checkpoint_path']:
                 # Adding logger.
                 checkpoint_path = os.path.join('log', checkpoint_args['checkpoint_path'])
-                logger = logging_utils.add_logger(
-                    logger_name='vivo_logger', path=checkpoint_path)
+                #logger = logging_utils.add_logger(
+                #    logger_name='vivo_logger', path=checkpoint_path)
             args = checkpoint_args
             logger.info('Loaded args are now:\n{}'.format(pprint.pformat(args)))
 

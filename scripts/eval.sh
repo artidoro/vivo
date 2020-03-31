@@ -8,5 +8,6 @@ python main.py\
     --use_checkpoint_args\
     --unk_replace\
     --mode eval\
+    -o eos_vector_replace\
     -o mode\
     -o unk_replace
