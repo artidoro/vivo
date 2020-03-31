@@ -141,35 +141,6 @@ def idxs_to_sentences(
         mapped_predictions.append(' '.join(mapped_example))
     return mapped_predictions
 
-def greedy_decoding(
-    model,
-    test_iter,
-    max_decoding_len,
-    unk_replace
-) -> Tuple[List[str], List[str]]:
-    mode = model.training
-    model.eval()
-    ground_truth = []
-    prediction_strings = []
-    with torch.no_grad():
-        for batch in tqdm(test_iter):
-            ground_truth += batch.trg.transpose(1, 0).tolist()
-            predictions = model.decode(batch.src, max_decoding_len)
-            if unk_replace:
-                attn_vectors = torch.stack(model.decoder.attention).permute(1,0,2)
-                prediction_strings += idxs_to_sentences(
-                    predictions,
-                    model.trg_vocab,
-                    src_sents=batch.src.permute(1,0),
-                    copy_lut=model.src_vocab,
-                    attn=attn_vectors
-                )
-            else:
-                prediction_strings += idxs_to_sentences(predictions, model.trg_vocab)
-    model.train(mode)
-    gt_strings = idxs_to_sentences(ground_truth, model.trg_vocab)
-    assert len(gt_strings) == len(prediction_strings)
-    return prediction_strings, gt_strings
 
 
 def decode(
@@ -179,14 +150,33 @@ def decode(
     unk_replace,
     write_to_file,
     checkpoint_path,
+    beam_size=1,
 ) -> Dict:
     # TODO: Think about returning more than just bleu (ex: ppx, loss, ...).
-    predictions, ground_truth = greedy_decoding(
-        model,
-        test_iter,
-        max_decoding_len,
-        unk_replace
-    )
+    mode = model.training
+    model.eval()
+    ground_truth_idxs = []
+    predictions = []
+    with torch.no_grad():
+        for batch in tqdm(test_iter):
+            ground_truth_idxs += batch.trg.transpose(1, 0).tolist()
+            prediction_idxs = model.decode(batch.src, max_decoding_len, beam_size)
+            if unk_replace:
+                # TODO Make this play nice with beam search
+                attn_vectors = torch.stack(model.decoder.attention).permute(1,0,2)
+                predictions += idxs_to_sentences(
+                    prediction_idxs,
+                    model.trg_vocab,
+                    src_sents=batch.src.permute(1,0),
+                    copy_lut=model.src_vocab,
+                    attn=attn_vectors
+                )
+            else:
+                predictions += idxs_to_sentences(prediction_idxs, model.trg_vocab)
+    model.train(mode)
+    ground_truth = idxs_to_sentences(ground_truth_idxs, model.trg_vocab)
+    assert len(ground_truth) == len(predictions)
+
     bleu = {"bleu": sacrebleu.corpus_bleu(predictions, [ground_truth]).score}
     if write_to_file:
         assert checkpoint_path is not None
