@@ -88,7 +88,7 @@ if __name__ == '__main__':
     for file_name in os.listdir(os.path.join('log', path)):
         if not file_name.endswith('pt'):
             continue
-        args['load_checkpoint_path'] = os.path.join(args['load_checkpoint_path'], file_name)
+        args['load_checkpoint_path'] = os.path.join(path, file_name)
         if args['load_checkpoint_path'] is not None:
             # Load checkpoint.
             checkpoint_path = os.path.join('log', args['load_checkpoint_path'])
