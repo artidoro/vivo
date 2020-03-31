@@ -85,11 +85,10 @@ if __name__ == '__main__':
     logger.info('Starting with args:\n{}'.format(pprint.pformat(args)))
 
     path = args['load_checkpoint_path']
-    for file_name in os.listdir(os.path.join('log', args['load_checkpoint_path'])):
-        args['load_checkpoint_path'] = os.path.join(args['load_checkpoint_path'], file_name)
+    for file_name in os.listdir(os.path.join('log', path)):
         if not file_name.endswith('pt'):
             continue
-        print(args)
+        args['load_checkpoint_path'] = os.path.join(args['load_checkpoint_path'], file_name)
         if args['load_checkpoint_path'] is not None:
             # Load checkpoint.
             checkpoint_path = os.path.join('log', args['load_checkpoint_path'])
