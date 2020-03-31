@@ -84,7 +84,8 @@ if __name__ == '__main__':
 
     if args['load_checkpoint_path'] is not None:
         # Load checkpoint.
-        checkpoint_path = os.path.join('log', args['load_checkpoint_path'])
+        #checkpoint_path = os.path.join('log', args['load_checkpoint_path'])
+        checkpoint_path = args['load_checkpoint_path']
         assert os.path.exists(checkpoint_path),\
             'Checkpoint path {} does not exists.'.format(checkpoint_path)
         checkpoint = torch.load(checkpoint_path, map_location=torch.device(args['device']))
@@ -99,8 +100,8 @@ if __name__ == '__main__':
             if args['checkpoint_path'] != checkpoint_args['checkpoint_path']:
                 # Adding logger.
                 checkpoint_path = os.path.join('log', checkpoint_args['checkpoint_path'])
-                logger = logging_utils.add_logger(
-                    logger_name='vivo_logger', path=checkpoint_path)
+                #logger = logging_utils.add_logger(
+                #    logger_name='vivo_logger', path=checkpoint_path)
             args = checkpoint_args
             logger.info('Loaded args are now:\n{}'.format(pprint.pformat(args)))
 
