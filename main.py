@@ -84,7 +84,8 @@ if __name__ == '__main__':
 
     if args['load_checkpoint_path'] is not None:
         # Load checkpoint.
-        checkpoint_path = os.path.join('log', args['load_checkpoint_path'])
+        #checkpoint_path = os.path.join('log', args['load_checkpoint_path'])
+        checkpoint_path = args['load_checkpoint_path']
         assert os.path.exists(checkpoint_path),\
             'Checkpoint path {} does not exists.'.format(checkpoint_path)
         checkpoint = torch.load(checkpoint_path, map_location=torch.device(args['device']))
