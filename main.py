@@ -148,7 +148,6 @@ if __name__ == '__main__':
                 lambda_2=args["vmf_lambda_2"],
                 reduction=args["loss_reduction"] if args['loss_reduction'] != 'sentence_mean' else 'none',
                 use_finite_sum=args["use_finite_sum"],
-                ignore_index=trg_field.vocab.stoi[trg_field.pad_token],
             )
         else:
             raise ValueError(f"Unknown loss function: {args['loss_function']}")
