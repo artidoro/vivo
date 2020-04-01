@@ -9,4 +9,4 @@ python main.py\
     --unk_replace\
     --fasttext_embeds_path ~/data/corpus.fasttext.fr\
     --eval_epochs 1\
-#    --enc_num_layers 2\
+    --enc_num_layers 2\

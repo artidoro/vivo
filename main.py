@@ -72,6 +72,7 @@ def parse_args(args):
     parser.add_argument('--load_optimizer', action='store_true')
     parser.add_argument('--load_scheduler', action='store_true')
     parser.add_argument('--write_to_file', action='store_true', help='Write predictions to file.')
+    parser.add_argument('--verbose', action='store_true')
     return vars(parser.parse_args(args))
 
 if __name__ == '__main__':
@@ -80,7 +81,8 @@ if __name__ == '__main__':
     # Initialize logging.
     checkpoint_path = os.path.join('log', args['checkpoint_path'])
     logger = logging_utils.setup_logging(logger_name='vivo_logger', path=checkpoint_path)
-    logger.info('Starting with args:\n{}'.format(pprint.pformat(args)))
+    if args['verbose']:
+        logger.info('Starting with args:\n{}'.format(pprint.pformat(args)))
 
     if args['load_checkpoint_path'] is not None:
         # Load checkpoint.
@@ -95,7 +97,7 @@ if __name__ == '__main__':
             checkpoint_args = checkpoint['args']
             if args['overwrite_args'] is None:
                 args['overwrite_args'] = []
-            for arg in args['overwrite_args'] + ['load_checkpoint_path']:
+            for arg in args['overwrite_args'] + ['load_checkpoint_path', 'eos_vector_replace', 'verbose']:
                 checkpoint_args[arg] = args[arg]
             if args['checkpoint_path'] != checkpoint_args['checkpoint_path']:
                 # Adding logger.
@@ -103,7 +105,8 @@ if __name__ == '__main__':
                 #logger = logging_utils.add_logger(
                 #    logger_name='vivo_logger', path=checkpoint_path)
             args = checkpoint_args
-            logger.info('Loaded args are now:\n{}'.format(pprint.pformat(args)))
+            if args['verbose']:
+                logger.info('Loaded args are now:\n{}'.format(pprint.pformat(args)))
 
     # Load the data.
     logger.info('Loading data and building iterators.')
