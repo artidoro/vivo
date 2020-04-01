@@ -23,12 +23,14 @@ class VonMisesFisherLoss(torch.nn.modules.loss._Loss):
         reduction="mean",
         use_finite_sum=False,
         device: str = "cpu",
+        ignore_index: int = -100,
     ) -> None:
         super(VonMisesFisherLoss, self).__init__(reduction=reduction)
         self.lambda_1 = lambda_1
         self.lambda_2 = lambda_2
         self.device = device
         self.use_finite_sum = use_finite_sum
+        self.ignore_index = ignore_index
         if self.use_finite_sum:
             bessel_consts = self.calculate_bessel_consts(
                 input_dim / 2 - 1, n_bessel_iters
@@ -45,6 +47,7 @@ class VonMisesFisherLoss(torch.nn.modules.loss._Loss):
         values for which the `target` is a zero vector. They should be filtered out
         before aggregation and backpropagation.
         """
+        target_ignore_mask = target == self.ignore_index
         # Only the target and not the input vector must have unit norm
         target_norms = target.norm(dim=-1)
         zero_mask = target_norms != 0.0
@@ -56,6 +59,11 @@ class VonMisesFisherLoss(torch.nn.modules.loss._Loss):
             - self.lambda_2 * (unit_target * input).sum(-1)
             + self.lambda_1 * input_norm
         )
+        # Zero out loss elements that we need to ignore.
+        print(target.shape)
+        print(target_ignore_mask.shape)
+        print(target_ignore_mask)
+        x[target_ignore_mask] = 0
         if self.reduction == "none":
             return x
         elif self.reduction == "mean":

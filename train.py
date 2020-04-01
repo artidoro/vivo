@@ -33,6 +33,8 @@ def train(model,
             else:
                 target = batch.trg[1:,:].view(-1)
             loss = loss_function(scores[:-1,:,:].view(-1, scores.shape[2]), target)
+            if args['reduction'] == 'sentence_mean':
+                loss = loss.view(-1, scores.shape[1]).sum(0).mean()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), args['gradient_clipping'])
             optimizer.step()
