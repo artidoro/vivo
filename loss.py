@@ -29,7 +29,6 @@ class VonMisesFisherLoss(torch.nn.modules.loss._Loss):
         self.lambda_2 = lambda_2
         self.device = device
         self.use_finite_sum = use_finite_sum
-        self.ignore_index = ignore_index
         if self.use_finite_sum:
             bessel_consts = self.calculate_bessel_consts(
                 input_dim / 2 - 1, n_bessel_iters
