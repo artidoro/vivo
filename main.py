@@ -97,6 +97,10 @@ if __name__ == '__main__':
                 args['overwrite_args'] = []
             for arg in args['overwrite_args'] + ['load_checkpoint_path']:
                 checkpoint_args[arg] = args[arg]
+            # In case new arguments were added.
+            for arg in args:
+                if arg not in checkpoint_args:
+                    checkpoint_args[arg] = args[arg]
             if args['checkpoint_path'] != checkpoint_args['checkpoint_path']:
                 # Adding logger.
                 checkpoint_path = os.path.join('log', checkpoint_args['checkpoint_path'])
@@ -115,7 +119,7 @@ if __name__ == '__main__':
         # Load the vocabs from the checkpoint.
         src_vocab = checkpoint['src_vocab']
         trg_vocab = checkpoint['trg_vocab']
-    train_iter, val_iter, test_iter, src_field, trg_field = utils.torchtext_iterators(
+    train_iter, val_iter, test_iter, src_field, trg_field, trg_field_test = utils.torchtext_iterators(
         args, src_vocab=src_vocab, trg_vocab=trg_vocab)
 
     # Initialize model and optimizer. This requires loading checkpoint if specified in the arguments.
@@ -170,6 +174,7 @@ if __name__ == '__main__':
     evaluation_results[args['mode']] = evaluation.decode(
         model,
         data_iter,
+        trg_field_test.vocab,
         args['max_len'],
         args['unk_replace'],
         args['write_to_file'],

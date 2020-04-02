@@ -43,6 +43,10 @@ def torchtext_iterators(args, src_vocab=None, trg_vocab=None):
         init_token=BOS_TOKEN,
         eos_token=EOS_TOKEN
     )
+    trg_field_test = torchtext.data.Field(
+        init_token=BOS_TOKEN,
+        eos_token=EOS_TOKEN
+    )
 
     train, val, test = torchtext.datasets.TranslationDataset.splits(
         path=os.path.join(args['data_path'], data_path),
@@ -55,6 +59,14 @@ def torchtext_iterators(args, src_vocab=None, trg_vocab=None):
                               len(vars(x)['trg']) <= args['max_len']
     )
 
+    test = torch.datasets.TranslationDataset(
+        path=os.path.join(args['data_path'], data_path, TEST_PREFIX),
+        exts=(src_ext, args['trg_language']),
+        fields=(src_field, trg_field_test),
+        filter_pred=lambda x: len(vars(x)['src']) <= args['max_len'] and
+                              len(vars(x)['trg']) <= args['max_len']
+    )
+
     if src_vocab is not None:
         src_field.vocab = src_vocab
     else:
@@ -63,6 +75,8 @@ def torchtext_iterators(args, src_vocab=None, trg_vocab=None):
         trg_field.vocab = trg_vocab
     else:
         trg_field.build_vocab(train.trg, min_freq=args['min_freq'], max_size=args['trg_vocab_size'])
+    trg_field_test.build_vocab(train.trg)
+
 
     # Create iterators and batch (different batch size for train and eval/test).
     train_iter = torchtext.data.BucketIterator(train,
@@ -72,8 +86,7 @@ def torchtext_iterators(args, src_vocab=None, trg_vocab=None):
         batch_size=args['eval_batch_size'], device=torch.device(args['device']), repeat=False,
         sort_key=lambda x: len(x.src), train=False)
     test_iter = torchtext.data.BucketIterator(test,
-        batch_size=args['eval_batch_size'], device=torch.device(args['device']), repeat=False,
-        sort_key=lambda x: len(x.src), train=False)
+        batch_size=args['eval_batch_size'], device=torch.device(args['device']), repeat=False, train=False)
 
     # Load pretrained embeddings.
     if args['fasttext_embeds_path'] is not None:
@@ -108,7 +121,7 @@ def torchtext_iterators(args, src_vocab=None, trg_vocab=None):
     logger.info('The size of src vocab is {} and trg vocab is {}.'.format(
         len(src_field.vocab.itos), len(trg_field.vocab.itos)))
 
-    return train_iter, val_iter, test_iter, src_field, trg_field
+    return train_iter, val_iter, test_iter, src_field, trg_field, trg_field_test
 
 def get_nearest_neighbor(
     x: torch.Tensor,

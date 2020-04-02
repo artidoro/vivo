@@ -146,6 +146,7 @@ def idxs_to_sentences(
 def greedy_decoding(
     model,
     test_iter,
+    test_trg_vocab,
     max_decoding_len,
     unk_replace
 ) -> Tuple[List[str], List[str]]:
@@ -161,15 +162,15 @@ def greedy_decoding(
                 attn_vectors = torch.stack(model.decoder.attention).permute(1,0,2)
                 prediction_strings += idxs_to_sentences(
                     predictions,
-                    model.trg_vocab,
+                    test_trg_vocab,
                     src_sents=batch.src.permute(1,0),
                     copy_lut=model.src_vocab,
                     attn=attn_vectors
                 )
             else:
-                prediction_strings += idxs_to_sentences(predictions, model.trg_vocab)
+                prediction_strings += idxs_to_sentences(predictions, test_trg_vocab)
     model.train(mode)
-    gt_strings = idxs_to_sentences(ground_truth, model.trg_vocab)
+    gt_strings = idxs_to_sentences(ground_truth, test_trg_vocab)
     assert len(gt_strings) == len(prediction_strings)
     return prediction_strings, gt_strings
 
@@ -177,6 +178,7 @@ def greedy_decoding(
 def decode(
     model,
     test_iter,
+    test_trg_vocab,
     max_decoding_len,
     unk_replace,
     write_to_file,
@@ -186,6 +188,7 @@ def decode(
     predictions, ground_truth = greedy_decoding(
         model,
         test_iter,
+        test_trg_vocab,
         max_decoding_len,
         unk_replace
     )
