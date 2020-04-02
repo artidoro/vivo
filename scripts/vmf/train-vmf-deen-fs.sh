@@ -1,5 +1,5 @@
 python main.py \
-    --checkpoint_path vmf-deen-fs \
+    --checkpoint_path vmf-deen-fs-red \
     --device cuda:1 \
     --dropout 0.0 \
     --enc_bidirectional \
