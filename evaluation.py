@@ -59,6 +59,8 @@ def eval(model, loss_function, test_iter, args, ignore_index=-100) -> Any:
         else:
             target = batch.trg[1:,:].view(-1)
         loss = loss_function(scores[:-1,:,:].view(-1, scores.shape[2]), target)
+        if args['loss_reduction'] == 'sentence_mean':
+                loss = loss.view(-1, scores.shape[1]).sum(0).mean()
         loss_tot += loss.item()
         if is_vmf_loss:
             pred_embeds = scores[:-1,:,:]

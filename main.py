@@ -29,6 +29,8 @@ def parse_args(args):
     parser.add_argument('--device', default='cpu', help='Select cuda for the gpu.')
     parser.add_argument('--model_name', default='lstm_attn')
     parser.add_argument('--loss_function', default='xent', choices=['xent','vmf'])
+    parser.add_argument('--use_finite_sum', action='store_true')
+    parser.add_argument('--loss_reduction', default='sentence_mean', choices=['sum', 'mean', 'sentence_mean', 'none'])
     # Encoder.
     parser.add_argument('--enc_embed_size', default=512, type=int)
     parser.add_argument('--enc_hidden_size', default=1024, type=int)
@@ -42,7 +44,6 @@ def parse_args(args):
     parser.add_argument('--tie_embed', action='store_true')
     parser.add_argument('--unk_replace', action='store_true')
     parser.add_argument('--eos_vector_replace', action='store_true')
-    parser.add_argument('--use_finite_sum', action='store_true')
     parser.add_argument('--fasttext_embeds_path', default=None,
         help='Path to file containing fasttext embeddings.')
 
@@ -145,7 +146,7 @@ if __name__ == '__main__':
                 device=args["device"],
                 lambda_1=args["vmf_lambda_1"],
                 lambda_2=args["vmf_lambda_2"],
-                reduction="mean",
+                reduction=args["loss_reduction"] if args['loss_reduction'] != 'sentence_mean' else 'none',
                 use_finite_sum=args["use_finite_sum"],
             )
         else:
