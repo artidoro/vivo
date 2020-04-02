@@ -94,6 +94,11 @@ if __name__ == '__main__':
         # Use checkpoint arguments if required.
         if args['use_checkpoint_args']:
             checkpoint_args = checkpoint['args']
+            checkpoint_args['mode'] = args['mode']
+            if 'loss_reduction' not in checkpoint_args:
+                checkpoint_args['loss_reduction'] = "mean"
+            if 'unk_lut_path' not in checkpoint_args:
+                checkpoint_args['unk_lut_path'] = False
             if args['overwrite_args'] is None:
                 args['overwrite_args'] = []
             for arg in args['overwrite_args'] + ['load_checkpoint_path']:
@@ -134,10 +139,10 @@ if __name__ == '__main__':
         if args['load_scheduler']:
             scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
     model.to(torch.device(args['device']))
-
+    
     if args['mode'] == 'train':
         logger.info('Starting training.')
-        reduction =args["loss_reduction"] if args['loss_reduction'] != 'sentence_mean' else 'none'
+        reduction = args["loss_reduction"] if args['loss_reduction'] != 'sentence_mean' else 'none'
         if args["loss_function"] == "xent":
             loss_function = loss_dict["xent"](
                 ignore_index=trg_field.vocab.stoi[trg_field.pad_token],
