@@ -95,7 +95,7 @@ def eval(model, loss_function, test_iter, args, ignore_index=-100) -> Any:
             if args['unk_replace']:
                 copy_lut = model.src_vocab
                 if args['unk_lut_path']:
-                    copy_lut = loadUNKLut(args['unk_lut_path']) 
+                    copy_lut = loadUnkLUT(args['unk_lut_path']) 
                 prediction_strings += idxs_to_sentences(predictions, model.trg_vocab,
                     src_sents=batch.src.permute(1,0), copy_lut=copy_lut, attn=attn_vectors)
             else:

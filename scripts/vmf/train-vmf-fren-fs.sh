@@ -1,6 +1,6 @@
 python main.py \
     --checkpoint_path vmf-fren-fs \
-    --device cuda:6 \
+    --device cuda:0 \
     --dropout 0.0 \
     --enc_bidirectional \
     --fasttext_embeds_path ~/data/corpus.fasttext.txt \
@@ -14,6 +14,7 @@ python main.py \
     --eval_epochs 1 \
     --trg_language en \
     --unk_replace \
+    --unk_lut_path fr_en.pkl\
     --vmf_lambda_1 0.02 \
     --vmf_lambda_2 0.1 \
     --write_to_file \
