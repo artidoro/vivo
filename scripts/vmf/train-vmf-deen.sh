@@ -3,7 +3,8 @@ python main.py \
     --device cuda:0 \
     --dropout 0.0 \
     --enc_bidirectional \
-    --fasttext_embeds_path ~/data/corpus.fasttext.txt \
+    --enc_embed_size 300 \
+    --fasttext_embeds_path ~/corpus.fasttext.txt \
     --input_feed \
     --loss_function vmf \
     --lr 5e-4 \

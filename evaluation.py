@@ -5,7 +5,7 @@ import math
 from pathlib import Path
 from typing import Any, List, Tuple, Dict, Union
 import torch
-
+from sacremoses import MosesDetokenizer
 import sacrebleu
 from tqdm import tqdm
 
@@ -117,9 +117,12 @@ def idxs_to_sentences(
     vocab,
     src_sents = None,
     copy_lut = None,
-    attn = None
+    attn = None,
+    deduplicate = True
 ) -> List[str]:
     mapped_predictions = []
+    prev_word = ""
+    md = MosesDetokenizer(lang='en')
     for pred_idx, prediction_example in enumerate(predictions):
         mapped_example = []
         # Iterates through sentence to find first EOS or decodes the entire sentence
@@ -138,9 +141,12 @@ def idxs_to_sentences(
             ):
                 _, max_attn_idx = attn[pred_idx,index_idx].max(-1)
                 word = copy_lut.itos[src_sents[pred_idx, max_attn_idx]]
+            if deduplicate and prev_word == word:
+                continue
+            prev_word = word
             mapped_example.append(word)
 
-        mapped_predictions.append(' '.join(mapped_example))
+        mapped_predictions.append(md.detokenize(mapped_example))
     return mapped_predictions
 
 def greedy_decoding(
