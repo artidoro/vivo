@@ -5,10 +5,9 @@ import math
 from pathlib import Path
 from typing import Any, List, Tuple, Dict, Union
 import torch
-
+from sacremoses import MosesDetokenizer, MosesDetruecaser
 import sacrebleu
 from tqdm import tqdm
-
 
 import utils
 from utils import BOS_TOKEN, EOS_TOKEN, UNK_TOKEN, PAD_TOKEN
@@ -119,11 +118,13 @@ def idxs_to_sentences(
     copy_lut = None,
     attn = None
 ) -> List[str]:
+    moses_detok = MosesDetokenizer(lang='en')
+    moses_detrue = MosesDetruecaser()
     mapped_predictions = []
     for pred_idx, prediction_example in enumerate(predictions):
         mapped_example = []
         # Iterates through sentence to find first EOS or decodes the entire sentence
-        sent_len = next((pos for pos,word_idx in enumerate(prediction_example) if word_idx == vocab.stoi[EOS_TOKEN]),len(prediction_example) -1) 
+        sent_len = next((pos for pos,word_idx in enumerate(prediction_example) if word_idx == vocab.stoi[EOS_TOKEN]),len(prediction_example) -1)
         for index_idx, index in enumerate(prediction_example[:sent_len]):
             word = vocab.itos[index]
             if word is EOS_TOKEN:
@@ -140,13 +141,12 @@ def idxs_to_sentences(
                 word = copy_lut.itos[src_sents[pred_idx, max_attn_idx]]
             mapped_example.append(word)
 
-        mapped_predictions.append(' '.join(mapped_example))
+        mapped_predictions.append(moses_detok.detokenize(moses_detrue.detruecase(mapped_example)))
     return mapped_predictions
 
 def greedy_decoding(
     model,
     test_iter,
-    test_trg_vocab,
     max_decoding_len,
     unk_replace
 ) -> Tuple[List[str], List[str]]:
@@ -162,15 +162,15 @@ def greedy_decoding(
                 attn_vectors = torch.stack(model.decoder.attention).permute(1,0,2)
                 prediction_strings += idxs_to_sentences(
                     predictions,
-                    test_trg_vocab,
+                    model.trg_vocab,
                     src_sents=batch.src.permute(1,0),
                     copy_lut=model.src_vocab,
                     attn=attn_vectors
                 )
             else:
-                prediction_strings += idxs_to_sentences(predictions, test_trg_vocab)
+                prediction_strings += idxs_to_sentences(predictions, model.trg_vocab)
     model.train(mode)
-    gt_strings = idxs_to_sentences(ground_truth, test_trg_vocab)
+    gt_strings = idxs_to_sentences(ground_truth, model.trg_vocab)
     assert len(gt_strings) == len(prediction_strings)
     return prediction_strings, gt_strings
 
@@ -178,7 +178,6 @@ def greedy_decoding(
 def decode(
     model,
     test_iter,
-    test_trg_vocab,
     max_decoding_len,
     unk_replace,
     write_to_file,
@@ -188,7 +187,6 @@ def decode(
     predictions, ground_truth = greedy_decoding(
         model,
         test_iter,
-        test_trg_vocab,
         max_decoding_len,
         unk_replace
     )

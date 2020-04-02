@@ -119,7 +119,7 @@ if __name__ == '__main__':
         # Load the vocabs from the checkpoint.
         src_vocab = checkpoint['src_vocab']
         trg_vocab = checkpoint['trg_vocab']
-    train_iter, val_iter, test_iter, src_field, trg_field, trg_field_test = utils.torchtext_iterators(
+    train_iter, val_iter, test_iter, src_field, trg_field = utils.torchtext_iterators(
         args, src_vocab=src_vocab, trg_vocab=trg_vocab)
 
     # Initialize model and optimizer. This requires loading checkpoint if specified in the arguments.
@@ -174,7 +174,6 @@ if __name__ == '__main__':
     evaluation_results[args['mode']] = evaluation.decode(
         model,
         data_iter,
-        trg_field_test.vocab,
         args['max_len'],
         args['unk_replace'],
         args['write_to_file'],
