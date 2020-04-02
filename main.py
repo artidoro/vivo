@@ -43,6 +43,7 @@ def parse_args(args):
     parser.add_argument('--input_feed', action='store_true')
     parser.add_argument('--tie_embed', action='store_true')
     parser.add_argument('--unk_replace', action='store_true')
+    parser.add_argument('--unk_lut_path', type=str)
     parser.add_argument('--eos_vector_replace', action='store_true')
     parser.add_argument('--fasttext_embeds_path', default=None,
         help='Path to file containing fasttext embeddings.')
@@ -171,8 +172,8 @@ if __name__ == '__main__':
         model,
         data_iter,
         args['max_len'],
-        args['unk_replace'],
         args['write_to_file'],
-        args['checkpoint_path']
+        args['checkpoint_path'],
+        args
     )
     logger.info('\n' + pprint.pformat(evaluation_results))

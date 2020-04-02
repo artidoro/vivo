@@ -16,6 +16,9 @@ from loss import VonMisesFisherLoss
 
 PathLike = Union[Path, str]
 
+def loadUnkLUT(unk_LUT_path):
+    import pickle
+    return pickle.load(open(unk_LUT_path,'rb'))
 
 def write_predictions(
     predictions: List[str],
@@ -90,8 +93,11 @@ def eval(model, loss_function, test_iter, args, ignore_index=-100) -> Any:
             ground_truth += idxs_to_sentences(batch.trg.transpose(0, 1).tolist(), model.trg_vocab)
             predictions = preds.transpose(0, 1).tolist()
             if args['unk_replace']:
+                copy_lut = model.src_vocab
+                if args['unk_lut_path']:
+                    copy_lut = loadUNKLut(args['unk_lut_path']) 
                 prediction_strings += idxs_to_sentences(predictions, model.trg_vocab,
-                    src_sents=batch.src.permute(1,0), copy_lut=model.src_vocab, attn=attn_vectors)
+                    src_sents=batch.src.permute(1,0), copy_lut=copy_lut, attn=attn_vectors)
             else:
                 prediction_strings += idxs_to_sentences(predictions, model.trg_vocab)
 
@@ -153,7 +159,7 @@ def greedy_decoding(
     model,
     test_iter,
     max_decoding_len,
-    unk_replace
+    args
 ) -> Tuple[List[str], List[str]]:
     mode = model.training
     model.eval()
@@ -163,13 +169,17 @@ def greedy_decoding(
         for batch in tqdm(test_iter):
             ground_truth += batch.trg.transpose(1, 0).tolist()
             predictions = model.decode(batch.src, max_decoding_len)
-            if unk_replace:
+            if args['unk_replace']:
                 attn_vectors = torch.stack(model.decoder.attention).permute(1,0,2)
+                copy_lut = model.src_vocab
+                if args['unk_lut_path']:
+                    copy_lut = loadUNKLut(args['unk_lut_path']) 
+
                 prediction_strings += idxs_to_sentences(
                     predictions,
                     model.trg_vocab,
                     src_sents=batch.src.permute(1,0),
-                    copy_lut=model.src_vocab,
+                    copy_lut=copy_lut,
                     attn=attn_vectors
                 )
             else:
@@ -184,16 +194,16 @@ def decode(
     model,
     test_iter,
     max_decoding_len,
-    unk_replace,
     write_to_file,
     checkpoint_path,
+    args
 ) -> Dict:
     # TODO: Think about returning more than just bleu (ex: ppx, loss, ...).
     predictions, ground_truth = greedy_decoding(
         model,
         test_iter,
         max_decoding_len,
-        unk_replace
+        args
     )
     bleu = {"bleu": sacrebleu.corpus_bleu(predictions, [ground_truth]).score}
     if write_to_file:

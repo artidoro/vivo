@@ -87,6 +87,7 @@ def torchtext_iterators(args, src_vocab=None, trg_vocab=None):
                     [embedding_vectors[excluded_word] for excluded_word in excluded_words\
                         if excluded_word in embedding_vectors.stoi]
                 )
+                import pdb;pdb.set_trace()
                 unk_vector = -torch.mean(excluded_vectors, dim=0)
             else:
                 unk_vector = torch.randn(trg_field.vocab.vectors[trg_field.vocab.stoi[UNK_TOKEN]].shape)
