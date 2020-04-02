@@ -64,7 +64,7 @@ class VonMisesFisherLoss(torch.nn.modules.loss._Loss):
             return x[zero_mask].sum()
 
     def _nc_lower_bound(self, kappa: Tensor, m: Tensor) -> Tensor:
-        v = m / 2
+        v = m / 2 - 1
         sqrt_term = torch.sqrt((v + 1) ** 2 + kappa ** 2)
         return (v - 1) * torch.log(v - 1 + sqrt_term) - sqrt_term
 
