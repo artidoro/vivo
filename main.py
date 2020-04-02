@@ -136,9 +136,11 @@ if __name__ == '__main__':
 
     if args['mode'] == 'train':
         logger.info('Starting training.')
+        reduction =args["loss_reduction"] if args['loss_reduction'] != 'sentence_mean' else 'none'
         if args["loss_function"] == "xent":
             loss_function = loss_dict["xent"](
-                ignore_index=trg_field.vocab.stoi[trg_field.pad_token]
+                ignore_index=trg_field.vocab.stoi[trg_field.pad_token],
+                reduction=reduction,
             )
         elif args["loss_function"] == "vmf":
             loss_function = loss_dict["vmf"](
@@ -146,7 +148,7 @@ if __name__ == '__main__':
                 device=args["device"],
                 lambda_1=args["vmf_lambda_1"],
                 lambda_2=args["vmf_lambda_2"],
-                reduction=args["loss_reduction"] if args['loss_reduction'] != 'sentence_mean' else 'none',
+                reduction=reduction,
                 use_finite_sum=args["use_finite_sum"],
             )
         else:
