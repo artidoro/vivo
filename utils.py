@@ -114,7 +114,7 @@ def get_nearest_neighbor(
     x: torch.Tensor,
     neighbors: torch.Tensor,
     neighbor_norms: Optional[torch.Tensor] = None,
-    top_k: int = 1,
+    top_k: Optional[int] = None,
 ) -> torch.Tensor:
     if neighbor_norms is None:
         neighbor_norms = neighbors.norm(dim=-1)
@@ -126,7 +126,7 @@ def get_nearest_neighbor(
     ).squeeze(-1)
     distances = (dots / norms)
     distances[zero_mask] = 0.0
-    if top_k > 1:
+    if top_k is not None:
         return torch.topk(distances, top_k, sorted=True).indices
     else:
         return distances.argmax(-1)

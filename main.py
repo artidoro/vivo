@@ -169,6 +169,17 @@ if __name__ == '__main__':
     logger.info('Starting evaluation.')
     data_iter = test_iter if args['mode'] == 'test' else val_iter
     evaluation_results = {}
+    loss_function = loss_dict["vmf"](
+        args["dec_embed_size"],
+        device=args["device"],
+        lambda_1=args["vmf_lambda_1"],
+        lambda_2=args["vmf_lambda_2"],
+        reduction="mean",
+        use_finite_sum=args["use_finite_sum"],
+    )
+    ignore_index = trg_field.vocab.stoi[trg_field.pad_token]
+    print(evaluation.eval(model, loss_function, val_iter, args, ignore_index=ignore_index))
+    model.decoder.loss_function = loss_function
     evaluation_results[args['mode']] = evaluation.decode(
         model,
         data_iter,

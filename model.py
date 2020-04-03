@@ -169,7 +169,7 @@ class AttentionDecoder(nn.Module):
         self.input_feed = kwargs["input_feed"]
 
         self.embedding = nn.Embedding(len(vocab), kwargs["dec_embed_size"])
-        if kwargs['fasttext_embeds_path']:
+        if kwargs["fasttext_embeds_path"]:
             self.embedding.weight = nn.Parameter(vocab.vectors)
         if not self.xent:
             # Freeze embeddings when using VMF.
@@ -222,9 +222,12 @@ class AttentionDecoder(nn.Module):
             self.embedding.weight.device
         )
         hidden = None
-        attention: List[Tensor] = []
+        # attention: List[Tensor] = []
+        batch_size = h_encoder.shape[1]
+        input_size = h_encoder.shape[0]
+        attention = torch.zeros([0, batch_size, input_size]).to(self.embedding.weight.device)
         outputs = []
-        self._reset()
+        # self._reset()
         for i in range(trg_embeddings.shape[0]):
             trg_embed = trg_embeddings[i : i + 1, :, :]  # t=1 x b x d
             output, hidden, attention = self.step(
@@ -256,7 +259,9 @@ class AttentionDecoder(nn.Module):
             .to(self.embedding.weight.device)
         ]
         eos_generated = np.zeros((1, batch_size), dtype=np.bool)
-        attention: List[Tensor] = []
+        # attention: List[Tensor] = []
+        input_size = h_encoder.shape[0]
+        attention = torch.zeros([0, batch_size, input_size]).to(self.embedding.weight.device)
 
         while len(decoded_idxs) < max_decoding_len and (eos_generated == 0).any():
             decoded_embeds = self.embedding(decoded_idxs[-1])
@@ -378,30 +383,43 @@ class AttentionDecoder(nn.Module):
             h_encoder,
         )
         if self.xent:
-            model_sm = self.linear1(model_out)
-            top_k = torch.topk(model_sm.log_softmax(-1), k)
-            new_states = []
-            for i in range(k):
-                # TODO Do this more efficiently.
-                new_idxs = torch.cat([state["idxs"], top_k.indices[..., i]], 0)
-                is_done = (
-                    state["is_done"] + (new_idxs[-1] == self.eos_idx).cpu().numpy()
-                )
-                new_states.append(
-                    {
-                        "idxs": new_idxs,
-                        "hidden": hidden,
-                        "attention": state["attention"],
-                        "model_out": model_out,
-                        "score": state["score"] + top_k.values[..., i],
-                        "is_done": is_done,
-                    }
-                )
-            return new_states
+            scores = self.linear1(model_out).log_softmax(-1)
+            top_k = torch.topk(scores, k)
+            top_k_values = top_k.values
+            top_k_indices = top_k.indices
         else:
-            raise NotImplementedError
-            # idxs = utils.get_nearest_neighbor(model_out, self.embedding.weight)
-            # decoded_idxs.append(idxs)
+            top_k_indices = utils.get_nearest_neighbor(
+                model_out, self.embedding.weight, top_k=k
+            )
+            reduction = self.loss_function.reduction
+            self.loss_function.reduction = "none"
+            top_k_values = -torch.stack(
+                [
+                    self.loss_function(
+                        model_out, self.embedding.weight[top_k_indices[..., i]]
+                    )
+                    for i in range(k)
+                ],
+                -1,
+            )
+            self.loss_function.reduction = reduction
+            # scores = (-self.loss_function(model_out)).log_softmax(-1)
+        new_states = []
+        for i in range(k):
+            # TODO Do this more efficiently.
+            new_idxs = torch.cat([state["idxs"], top_k_indices[..., i]], 0)
+            is_done = state["is_done"] + (new_idxs[-1] == self.eos_idx).cpu().numpy()
+            new_states.append(
+                {
+                    "idxs": new_idxs,
+                    "hidden": hidden,
+                    "attention": state["attention"],
+                    "model_out": model_out,
+                    "score": state["score"] + top_k_values[..., i],
+                    "is_done": is_done,
+                }
+            )
+        return new_states
 
 
 model_dict = {
