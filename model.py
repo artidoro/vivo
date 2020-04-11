@@ -160,8 +160,8 @@ class AttentionDecoder(nn.Module):
         self.embedding = nn.Embedding(len(vocab), kwargs["dec_embed_size"])
         if kwargs['fasttext_embeds_path']:
             self.embedding.weight = nn.Parameter(vocab.vectors)
-        if not self.xent:
-            # Freeze embeddings when using VMF.
+        if not self.xent or kwargs["fix_decoder_embed"]:
+            # Freeze embeddings when using VMF or when specified.
             self.embedding.weight.requires_grad = False
 
         self.lstm = nn.LSTM(
