@@ -42,6 +42,7 @@ def parse_args(args):
     parser.add_argument('--dec_num_layers', default=2, type=int)
     parser.add_argument('--input_feed', action='store_true')
     parser.add_argument('--tie_embed', action='store_true')
+    parser.add_arguemnt('--fix_decoder_embed', action='store_true')
     parser.add_argument('--unk_replace', action='store_true')
     parser.add_argument('--eos_vector_replace', action='store_true')
     parser.add_argument('--fasttext_embeds_path', default=None,
