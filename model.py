@@ -1,5 +1,6 @@
 from typing import List, Tuple
 
+import logging
 import math
 import numpy as np
 from torch import Tensor
@@ -150,6 +151,7 @@ class GlobalAttention(nn.Module):
 class AttentionDecoder(nn.Module):
     def __init__(self, vocab, **kwargs):
         super(AttentionDecoder, self).__init__()
+        logger = logging.getLogger('vivo_logger')
         self.xent = kwargs["loss_function"] == "xent"
         # LSTM input dimension changes with input feeding.
         lstm_input_size = kwargs["dec_embed_size"]
@@ -160,9 +162,16 @@ class AttentionDecoder(nn.Module):
         self.embedding = nn.Embedding(len(vocab), kwargs["dec_embed_size"])
         if kwargs['fasttext_embeds_path']:
             self.embedding.weight = nn.Parameter(vocab.vectors)
+            logger.info('Loaded FastText embeds')
+        if kwargs["normalize_decoder_embed"]:
+            embeds = self.embedding.weight.clone().detach()
+            norm_embeds = embeds.norm(p=2, dim=1, keepdim=True)
+            self.embedding.weight = nn.Parameter(embeds.div(norm_embeds.expand_as(embeds)))
+            logger.info('Normalized FastText embeds')
         if not self.xent or kwargs["fix_decoder_embed"]:
             # Freeze embeddings when using VMF or when specified.
             self.embedding.weight.requires_grad = False
+            logger.info('No grad for decoder embeds')
 
         self.lstm = nn.LSTM(
             lstm_input_size,
@@ -180,6 +189,13 @@ class AttentionDecoder(nn.Module):
             # Weight tying.
             if kwargs["tie_embed"]:
                 self.linear1.weight = self.embedding.weight
+                logger.info("Tied weights of decoder embeds and linear layer.")
+        if kwargs["normalize_decoder_linear_only"]:
+            linear = self.linear1.weight.clone().detach()
+            norm_linear = linear.norm(p=2, dim=1, keepdim=True)
+            self.linear1.weight = nn.Parameter(linear.div(norm_linear.expand_as(linear)))
+            self.linear1.weight.requires_grad = False
+            logger.info('Normalized and no grads for linear layer.')
 
         self.dropout = nn.Dropout(kwargs["dropout"])
         self.attention = []
