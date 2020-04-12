@@ -166,7 +166,10 @@ class AttentionDecoder(nn.Module):
         if kwargs["normalize_decoder_embed"]:
             embeds = self.embedding.weight.clone().detach()
             norm_embeds = embeds.norm(p=2, dim=1, keepdim=True)
-            self.embedding.weight = nn.Parameter(embeds.div(norm_embeds.expand_as(embeds)))
+            mask_embed = norm_embeds == 0
+            embeds = embeds.div(norm_embeds.expand_as(embeds)).detach()
+            embeds[mask_embed.expand_as(embeds)] = 0
+            self.embedding.weight = nn.Parameter(embeds)
             logger.info('Normalized FastText embeds')
         if not self.xent or kwargs["fix_decoder_embed"]:
             # Freeze embeddings when using VMF or when specified.
@@ -193,7 +196,10 @@ class AttentionDecoder(nn.Module):
         if kwargs["normalize_decoder_linear_only"]:
             linear = self.linear1.weight.clone().detach()
             norm_linear = linear.norm(p=2, dim=1, keepdim=True)
-            self.linear1.weight = nn.Parameter(linear.div(norm_linear.expand_as(linear)))
+            mask_linear = (norm_linear == 0)
+            linear = linear.div(norm_linear.expand_as(linear)).detach()
+            linear[mask_linear.expand_as(linear)] = 0
+            self.linear1.weight = nn.Parameter(linear)
             self.linear1.weight.requires_grad = False
             logger.info('Normalized and no grads for linear layer.')
 
