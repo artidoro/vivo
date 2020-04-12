@@ -1,5 +1,5 @@
 python main.py\
-    --checkpoint_path sm_deen\
+    --checkpoint_path sm_deen_red\
     --device cuda:0\
     --src_language de\
     --trg_language en\
@@ -9,4 +9,4 @@ python main.py\
     --unk_replace\
     --fasttext_embeds_path ~/data/corpus.fasttext.txt\
     --eval_epochs 1\
-#    --enc_num_layers 2\
+    --enc_num_layers 2\

@@ -1,0 +1,12 @@
+python main.py --checkpoint_path vmf-fren-fs\
+               --src_language fr\
+               --trg_language en\
+               --enc_bidirectional\
+               --input_feed\
+               --tie_embed\
+               --unk_replace\
+               --mode eval\
+               --load_checkpoint_path vmf-fren-fs/31-03-2020_07:23:28.pt\
+               --use_checkpoint_args\
+               --loss_reduction mean\
+               --device cuda:5

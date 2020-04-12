@@ -30,7 +30,7 @@ def parse_args(args):
     parser.add_argument('--model_name', default='lstm_attn')
     parser.add_argument('--loss_function', default='xent', choices=['xent','vmf'])
     parser.add_argument('--use_finite_sum', action='store_true')
-    parser.add_argument('--loss_reduction', default='sentence_mean', choices=['sum', 'mean', 'sentence_mean', 'none'])
+    parser.add_argument('--loss_reduction', default='mean', choices=['sum', 'mean', 'sentence_mean', 'none'])
     # Encoder.
     parser.add_argument('--enc_embed_size', default=512, type=int)
     parser.add_argument('--enc_hidden_size', default=1024, type=int)
@@ -42,7 +42,9 @@ def parse_args(args):
     parser.add_argument('--dec_num_layers', default=2, type=int)
     parser.add_argument('--input_feed', action='store_true')
     parser.add_argument('--tie_embed', action='store_true')
-    parser.add_arguemnt('--fix_decoder_embed', action='store_true')
+    parser.add_argument('--fix_decoder_embed', action='store_true')
+    parser.add_argument('--normalize_decoder_embed', action='store_true')
+    parser.add_argument('--normalize_decoder_linear_only', action='store_true')
     parser.add_argument('--unk_replace', action='store_true')
     parser.add_argument('--eos_vector_replace', action='store_true')
     parser.add_argument('--fasttext_embeds_path', default=None,
@@ -94,6 +96,8 @@ if __name__ == '__main__':
         # Use checkpoint arguments if required.
         if args['use_checkpoint_args']:
             checkpoint_args = checkpoint['args']
+            if 'loss_reduction' not in checkpoint_args:
+                checkpoint_args['loss_reduction'] = "mean" 
             if args['overwrite_args'] is None:
                 args['overwrite_args'] = []
             for arg in args['overwrite_args'] + ['load_checkpoint_path']:
