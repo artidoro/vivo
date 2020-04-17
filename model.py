@@ -188,7 +188,8 @@ class AttentionDecoder(nn.Module):
             out_size=kwargs["dec_embed_size"],
         )
         if self.xent:
-            self.linear1 = nn.Linear(kwargs["dec_embed_size"], len(vocab))
+            self.projection_type = kwargs['projection']
+            self.linear1 = nn.Linear(kwargs["dec_embed_size"], len(vocab), bias=(self.projection_type == 'cos'))
             # Weight tying.
             if kwargs["tie_embed"]:
                 self.linear1.weight = self.embedding.weight
@@ -202,6 +203,11 @@ class AttentionDecoder(nn.Module):
             self.linear1.weight = nn.Parameter(linear)
             self.linear1.weight.requires_grad = False
             logger.info('Normalized and no grads for linear layer.')
+        
+        # No need to recompute the norm if we are not changind the linear layer weights.
+        if self.linear1.weight.requires_grad == False:
+            self.linear1_norm = self.linear1.weight.norm(p=2, dim=1).to(kwargs['device'])
+            self.linear1_norm.requires_grad = False
 
         self.dropout = nn.Dropout(kwargs["dropout"])
         self.attention = []
@@ -238,7 +244,17 @@ class AttentionDecoder(nn.Module):
             trg_embed = trg_embeddings[i : i + 1, :, :]  # t=1 x b x d
             output, hidden = self.step(trg_embed, output, hidden, h_encoder)
             if self.xent:
-                output_projected = self.linear1(output)
+                if self.projection_type == 'dot':
+                    output_projected = self.linear1(output)
+                elif self.projection_type == 'cos':
+                    norm_output = output.norm(p=2, dim=2)
+                    if self.linear1.weight.requires_grad:
+                        self.linear1_norm = self.linear1.weight.norm(p=2, dim=1)
+                    norms = norm_output.unsqueeze(-1) @ self.linear1_norm.unsqueeze(0)
+                    norms = torch.max(norms, 1e-8 * torch.ones_like(norms))
+                    output_projected = self.linear1(output) / norms
+                else:
+                    raise NotImplementedError
                 outputs.append(output_projected)
             else:
                 outputs.append(output)
@@ -265,7 +281,17 @@ class AttentionDecoder(nn.Module):
             decoded_embeds = self.embedding(decoded_idxs[-1])
             model_out, hidden = self.step(decoded_embeds, model_out, hidden, h_encoder)
             if self.xent:
-                model_sm = self.linear1(model_out)
+                if self.projection_type == 'dot':
+                    model_sm = self.linear1(model_out)
+                elif self.projection_type == 'cos':
+                    norm_output = model_out.norm(p=2, dim=2)
+                    if self.linear1.weight.requires_grad:
+                        self.linear1_norm = self.linear1.weight.norm(p=2, dim=1)
+                    norms = norm_output.unsqueeze(-1) @ self.linear1_norm.unsqueeze(0)
+                    norms = torch.max(norms, 1e-8 * torch.ones_like(norms))
+                    model_sm = self.linear1(model_out) / norms
+                else:
+                    raise NotImplementedError
                 decoded_idxs.append(model_sm.argmax(-1))
             else:
                 idxs = utils.get_nearest_neighbor(model_out, self.embedding.weight)

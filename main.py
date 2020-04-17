@@ -49,6 +49,7 @@ def parse_args(args):
     parser.add_argument('--eos_vector_replace', action='store_true')
     parser.add_argument('--fasttext_embeds_path', default=None,
         help='Path to file containing fasttext embeddings.')
+    parser.add_argument('--projection', default='dot', choices=['dot', 'cos'])
 
     # Training.
     parser.add_argument('--mode', default='train', choices=['eval','train','test'])
