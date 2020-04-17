@@ -110,12 +110,15 @@ def torchtext_iterators(args, src_vocab=None, trg_vocab=None):
 
     return train_iter, val_iter, test_iter, src_field, trg_field
 
-def get_nearest_neighbor(
+def cosine_similarity_manual(
     x: torch.Tensor,
     neighbors: torch.Tensor,
     neighbor_norms: Optional[torch.Tensor] = None,
-    top_k: int = 1,
+    device=None,
 ) -> torch.Tensor:
+    if device is not None:
+        x = x.to(device)
+        neighbors = neighbors.to(device)
     if neighbor_norms is None:
         neighbor_norms = neighbors.norm(dim=-1)
     batch_dims = len(x.shape) - 1
@@ -126,6 +129,41 @@ def get_nearest_neighbor(
     ).squeeze(-1)
     distances = (dots / norms)
     distances[zero_mask] = 0.0
+    return distances
+
+def cosine_similarity_iter(
+    x: torch.Tensor,
+    neighbors: torch.Tensor,
+) -> torch.Tensor:
+    outputs = []
+    x_shape = x.shape
+    x = x.view(-1, x.shape[2])
+    for i in range(x.shape[0]):
+        cos = torch.nn.functional.cosine_similarity(x[i].unsqueeze(0), neighbors, dim=1)
+        outputs.append(cos)
+    outputs = torch.stack(outputs, dim=0)
+    return outputs.view(x_shape[0], x_shape[1], neighbors.shape[0])
+
+def cosine_similarity(
+    x: torch.Tensor,
+    neighbors: torch.Tensor,
+) -> torch.Tensor:
+    x = x.unsqueeze(2)
+    neighbors = neighbors.unsqueeze(0).unsqueeze(0).expand(x.shape[0], x.shape[1], -1, -1)
+    cos = torch.nn.functional.cosine_similarity(
+        x,
+        neighbors,
+        dim=3
+    )
+    return cos
+
+def get_nearest_neighbor(
+    x: torch.Tensor,
+    neighbors: torch.Tensor,
+    neighbor_norms: Optional[torch.Tensor] = None,
+    top_k: int = 1,
+) -> torch.Tensor:
+    distances = cosine_similarity_manual(x, neighbors, neighbor_norms)
     if top_k > 1:
         return torch.topk(distances, top_k, sorted=True).indices
     else:
